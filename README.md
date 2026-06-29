@@ -142,6 +142,18 @@ public array $scores;
 ```
 For dictionary object keys or values, provide `keyClass` or `elementClass`. Whether that class is encoded as a C# struct comes from its own `#[MemoryPackable(valueType: true)]` declaration.
 
+## String Encoding
+
+The default string format is UTF-8, matching the standard C# MemoryPack string behavior. PHP core `MemoryPackReader` and `MemoryPackWriter` use this format for `Type::STRING`.
+
+UTF-8 strings are written as:
+
+1. `~utf8ByteLength`
+2. `0`
+3. raw UTF-8 bytes
+
+Use `Utf16StringFormatter` only when a field is explicitly marked for UTF-16 interop. In PHP, apply `->withFormatter(Utf16StringFormatter::class)` or `formatter: Utf16StringFormatter::class`; in C#, apply `[Utf16StringFormatter]` on the field.
+
 ## Custom Formatter
 
 ```php
@@ -170,6 +182,12 @@ final class Player
     #[MemoryPackField(order: 0, formatter: UpperNameFormatter::class)]
     public string $name;
 }
+
+$player = new Player();
+$player->name = 'abc';
+
+$payload = MemoryPackSerializer::serializeObject($player);
+$player = MemoryPackSerializer::deserializeObject(Player::class, $payload);
 ```
 
 ## Supported Types

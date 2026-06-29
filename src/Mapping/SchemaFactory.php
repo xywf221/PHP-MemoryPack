@@ -143,21 +143,11 @@ final class SchemaFactory
             return null;
         }
 
-        $elementType = $attribute?->elementClass !== null ? Type::OBJECT : $attribute?->elementType;
-        if ($elementType === null) {
-            throw new \InvalidArgumentException("Collection property {$property->getName()} needs MemoryPackField elementType or elementClass.");
-        }
-
-        return new FieldDefinition(
-            $property->getName() . 'Value',
-            $elementType,
-            false,
-            null,
-            null,
-            null,
-            null,
+        return $this->nestedDefinition(
+            $property,
+            'element',
+            $attribute?->elementType,
             $attribute?->elementClass,
-            $this->isValueType($attribute?->elementClass),
         );
     }
 
@@ -168,21 +158,37 @@ final class SchemaFactory
             return null;
         }
 
-        $keyType = $attribute?->keyClass !== null ? Type::OBJECT : $attribute?->keyType;
-        if ($keyType === null) {
-            throw new \InvalidArgumentException("Dictionary property {$property->getName()} needs MemoryPackField keyType or keyClass.");
+        return $this->nestedDefinition(
+            $property,
+            'key',
+            $attribute?->keyType,
+            $attribute?->keyClass,
+        );
+    }
+
+    private function nestedDefinition(
+        ReflectionProperty $property,
+        string $kind,
+        string|null $type,
+        string|null $className,
+    ): FieldDefinition {
+        $resolvedType = $className !== null ? Type::OBJECT : $type;
+        if ($resolvedType === null) {
+            throw new \InvalidArgumentException(
+                ucfirst($kind) . " property {$property->getName()} needs MemoryPackField {$kind}Type or {$kind}Class.",
+            );
         }
 
         return new FieldDefinition(
-            $property->getName() . 'Key',
-            $keyType,
+            $property->getName() . ucfirst($kind),
+            $resolvedType,
             false,
             null,
             null,
             null,
             null,
-            $attribute?->keyClass,
-            $this->isValueType($attribute?->keyClass),
+            $className,
+            $this->isValueType($className),
         );
     }
 
