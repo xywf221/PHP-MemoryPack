@@ -1,3 +1,5 @@
 /vendor/
 /.pest.xml
 .phpunit.result.cache
+**/bin/
+**/obj/

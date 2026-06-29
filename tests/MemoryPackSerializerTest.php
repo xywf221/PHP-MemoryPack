@@ -12,6 +12,7 @@ use MemoryPack\Tests\Fixtures\A;
 use MemoryPack\Tests\Fixtures\B;
 use MemoryPack\Tests\Fixtures\C;
 use MemoryPack\Tests\Fixtures\Inventory;
+use MemoryPack\Tests\Fixtures\InteropPayload;
 use MemoryPack\Tests\Fixtures\Player;
 use MemoryPack\Tests\Fixtures\Point;
 use MemoryPack\Tests\Fixtures\Shape;
@@ -172,5 +173,59 @@ it('round trips dictionary attributes with value object values', function (): vo
         ->and($result->locations['spawn']->x)->toBe(9)
         ->and($result->locations['spawn']->y)->toBe(4);
 });
+it('interoperates with real C# MemoryPack serialization', function (): void {
+    $project = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop' . DIRECTORY_SEPARATOR . 'CSharpInterop.csproj';
 
+    $csharpPayload = trim(runCommand(['dotnet', 'run', '--project', $project, '--', 'write']));
+    $fromCsharp = MemoryPackSerializer::deserializeObject(InteropPayload::class, base64_decode($csharpPayload, true));
 
+    expect($fromCsharp)->toBeInstanceOf(InteropPayload::class)
+        ->and($fromCsharp->id)->toBe(42)
+        ->and($fromCsharp->name)->toBe('雷少')
+        ->and($fromCsharp->active)->toBeTrue()
+        ->and($fromCsharp->scores)->toBe([3, 5, 8])
+        ->and($fromCsharp->tags)->toBe(['php', 'csharp'])
+        ->and($fromCsharp->counts)->toBe(['alpha' => 10, 'beta' => 20])
+        ->and($fromCsharp->origin)->toBeInstanceOf(Point::class)
+        ->and($fromCsharp->origin->x)->toBe(9)
+        ->and($fromCsharp->origin->y)->toBe(4);
+
+    $payload = new InteropPayload();
+    $payload->id = 42;
+    $payload->name = '雷少';
+    $payload->active = true;
+    $payload->scores = [3, 5, 8];
+    $payload->tags = ['php', 'csharp'];
+    $payload->counts = ['alpha' => 10, 'beta' => 20];
+    $payload->origin = new Point();
+    $payload->origin->x = 9;
+    $payload->origin->y = 4;
+
+    $phpPayload = base64_encode(MemoryPackSerializer::serializeObject($payload));
+    expect(trim(runCommand(['dotnet', 'run', '--project', $project, '--', 'read', $phpPayload])))->toBe('ok');
+});
+
+function runCommand(array $command): string
+{
+    $descriptorSpec = [
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+
+    $process = proc_open($command, $descriptorSpec, $pipes, dirname(__DIR__));
+    if (!is_resource($process)) {
+        throw new RuntimeException('Failed to start process.');
+    }
+
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+    $exitCode = proc_close($process);
+
+    if ($exitCode !== 0) {
+        throw new RuntimeException("Command failed with exit code {$exitCode}: {$stderr}");
+    }
+
+    return $stdout;
+}
