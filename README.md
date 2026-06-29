@@ -190,6 +190,40 @@ $payload = MemoryPackSerializer::serializeObject($player);
 $player = MemoryPackSerializer::deserializeObject(Player::class, $payload);
 ```
 
+## Self-Serializing Types
+
+When a class is referenced by many fields and you do not want to attach a custom formatter to each of them, let the class own its wire format by implementing `MemoryPackableInterface`. The serializer delegates to its static methods at every object boundary: the top level, nested object fields, list elements, and dictionary values. This mirrors C#'s `IMemoryPackable<T>`.
+
+The two methods have full control of the bytes, including the object or null header. Mark them with `#[\Override]`.
+
+```php
+use MemoryPack\Core\MemoryPackReader;
+use MemoryPack\Core\MemoryPackWriter;
+use MemoryPack\Mapping\MemoryPackableInterface;
+
+final class Temperature implements MemoryPackableInterface
+{
+    public int $celsius;
+
+    public static function memoryPackSerialize(MemoryPackWriter $writer, object|null $value): void
+    {
+        $writer->writeInt32($value->celsius);
+    }
+
+    public static function memoryPackDeserialize(MemoryPackReader $reader): self
+    {
+        $temperature = new self();
+        $temperature->celsius = $reader->readInt32();
+
+        return $temperature;
+    }
+}
+```
+
+Any field typed as `Temperature`, or a list or dictionary of `Temperature`, now uses these methods automatically with no per-field configuration.
+
+To supply only a `Schema` and reuse the default wire format, implement `MemoryPackSchemaInterface` with `memoryPackSchema(): Schema` instead.
+
 ## Supported Types
 
 - `bool`

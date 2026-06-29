@@ -26,7 +26,7 @@ final class SchemaFactory
         if (isset($this->cache[$className])) {
             return $this->cache[$className];
         }
-        if (is_subclass_of($className, MemoryPackableInterface::class)) {
+        if (is_subclass_of($className, MemoryPackSchemaInterface::class)) {
             return $this->cache[$className] = $className::memoryPackSchema();
         }
 

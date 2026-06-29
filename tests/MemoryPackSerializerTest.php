@@ -13,9 +13,11 @@ use MemoryPack\Tests\Fixtures\B;
 use MemoryPack\Tests\Fixtures\C;
 use MemoryPack\Tests\Fixtures\Inventory;
 use MemoryPack\Tests\Fixtures\InteropPayload;
+use MemoryPack\Tests\Fixtures\Forecast;
 use MemoryPack\Tests\Fixtures\Player;
 use MemoryPack\Tests\Fixtures\Point;
 use MemoryPack\Tests\Fixtures\Shape;
+use MemoryPack\Tests\Fixtures\Temperature;
 use MemoryPack\Tests\Fixtures\Utf16Payload;
 use MemoryPack\Formatters\Utf16StringFormatter;
 
@@ -228,6 +230,39 @@ it('interoperates with real C# MemoryPack serialization', function (): void {
 
     $phpPayload = base64_encode(MemoryPackSerializer::serializeObject($payload));
     expect(trim(runCommand(['dotnet', 'run', $script, '--', 'read', $phpPayload])))->toBe('ok');
+});
+
+it('delegates to self-serializing types at every object boundary', function (): void {
+    $forecast = new Forecast();
+    $forecast->current = Temperature::of(21);
+    $forecast->hourly = [Temperature::of(18), Temperature::of(23)];
+    $forecast->byCity = ['oslo' => Temperature::of(-4)];
+
+    $payload = MemoryPackSerializer::serializeObject($forecast);
+
+    // object header (3 fields), bare int32 for current, then list and dict of bare int32 temperatures.
+    expect(bin2hex($payload))->toBe('03' . '15000000' . '02000000' . '12000000' . '17000000' . '01000000' . 'fbffffff00000000' . '6f736c6f' . 'fcffffff');
+
+    $result = MemoryPackSerializer::deserializeObject(Forecast::class, $payload);
+
+    expect($result)->toBeInstanceOf(Forecast::class)
+        ->and($result->current)->toBeInstanceOf(Temperature::class)
+        ->and($result->current->celsius)->toBe(21)
+        ->and($result->hourly[0]->celsius)->toBe(18)
+        ->and($result->hourly[1]->celsius)->toBe(23)
+        ->and($result->byCity['oslo'])->toBeInstanceOf(Temperature::class)
+        ->and($result->byCity['oslo']->celsius)->toBe(-4);
+});
+
+it('round trips a self-serializing type at the top level', function (): void {
+    $payload = MemoryPackSerializer::serializeObject(Temperature::of(7));
+
+    expect(bin2hex($payload))->toBe('07000000');
+
+    $result = MemoryPackSerializer::deserializeObject(Temperature::class, $payload);
+
+    expect($result)->toBeInstanceOf(Temperature::class)
+        ->and($result->celsius)->toBe(7);
 });
 
 function runCommand(array $command): string

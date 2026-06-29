@@ -13,6 +13,7 @@ use MemoryPack\Mapping\Type;
 use MemoryPack\Exception\MemoryPackException;
 use MemoryPack\Formatters\FormatterRegistry;
 use MemoryPack\Formatters\MemoryPackFormatterInterface;
+use MemoryPack\Mapping\MemoryPackableInterface;
 use ReflectionClass;
 
 final class MemoryPackSerializer
@@ -82,6 +83,12 @@ final class MemoryPackSerializer
 
     public static function serializeObject(object|null $value): string
     {
+        if ($value !== null && $value instanceof MemoryPackableInterface) {
+            $writer = new MemoryPackWriter();
+            $value::memoryPackSerialize($writer, $value);
+            return $writer->bytes();
+        }
+
         if ($value === null) {
             $writer = new MemoryPackWriter();
             $writer->writeNullObject();
@@ -98,6 +105,16 @@ final class MemoryPackSerializer
      */
     public static function deserializeObject(string $className, string $payload): object|null
     {
+        if (is_subclass_of($className, MemoryPackableInterface::class)) {
+            $reader = new MemoryPackReader($payload);
+            $value = $className::memoryPackDeserialize($reader);
+            if ($reader->remaining() !== 0) {
+                throw new MemoryPackException('Payload has trailing bytes.');
+            }
+
+            return $value instanceof $className ? $value : null;
+        }
+
         $value = self::deserialize(self::schemaFactory()->create($className), $payload);
 
         return $value instanceof $className ? $value : null;
@@ -191,6 +208,10 @@ final class MemoryPackSerializer
         if ($field->className === null) {
             throw new \InvalidArgumentException("Object field {$field->name} needs a class name.");
         }
+        if (is_subclass_of($field->className, MemoryPackableInterface::class)) {
+            $field->className::memoryPackSerialize($writer, $value);
+            return;
+        }
 
         $schema = self::schemaFactory()->create($field->className);
         self::writeObject($writer, $schema, $value, !$field->valueType && !$schema->valueType);
@@ -200,6 +221,9 @@ final class MemoryPackSerializer
     {
         if ($field->className === null) {
             throw new \InvalidArgumentException("Object field {$field->name} needs a class name.");
+        }
+        if (is_subclass_of($field->className, MemoryPackableInterface::class)) {
+            return $field->className::memoryPackDeserialize($reader);
         }
 
         $schema = self::schemaFactory()->create($field->className);
