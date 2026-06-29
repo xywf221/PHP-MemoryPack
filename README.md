@@ -65,14 +65,14 @@ $player = MemoryPackSerializer::deserializeObject(Player::class, $payload);
 #[MemoryPackable]
 final class A
 {
-    #[MemoryPackField(order: 0, type: Type::OBJECT)]
+    #[MemoryPackField(order: 0)]
     public B $b;
 }
 
 #[MemoryPackable]
 final class B
 {
-    #[MemoryPackField(order: 0, type: Type::OBJECT)]
+    #[MemoryPackField(order: 0)]
     public C $c;
 }
 ```
@@ -82,13 +82,13 @@ Nested mappings recurse, so `A -> B -> C` is serialized in field order.
 For `list<object>`, provide the element class:
 
 ```php
-#[MemoryPackField(order: 0, type: Type::LIST, elementType: Type::OBJECT, elementClass: Point::class)]
+#[MemoryPackField(order: 0, type: Type::LIST, elementClass: Point::class)]
 public array $points;
 ```
 
 ## C# Struct / Value Type
 
-C# structs are value types and are encoded without a nullable object header when nested. Mark the PHP mapping as `valueType`.
+C# structs are value types and are encoded without a nullable object header when nested. Mark the mapped PHP class as `valueType`; fields only reference the class.
 
 ```php
 #[MemoryPackable(valueType: true)]
@@ -104,10 +104,10 @@ final class Point
 #[MemoryPackable]
 final class Shape
 {
-    #[MemoryPackField(order: 0, type: Type::OBJECT, valueType: true)]
+    #[MemoryPackField(order: 0)]
     public Point $origin;
 
-    #[MemoryPackField(order: 1, type: Type::LIST, elementType: Type::OBJECT, elementClass: Point::class, elementValueType: true)]
+    #[MemoryPackField(order: 1, type: Type::LIST, elementClass: Point::class)]
     public array $points;
 }
 ```
@@ -138,6 +138,8 @@ Attribute mapping:
 #[MemoryPackField(order: 0, type: Type::DICT, keyType: Type::STRING, elementType: Type::INT32)]
 public array $scores;
 ```
+For dictionary object keys or values, provide `keyClass` or `elementClass`. Whether that class is encoded as a C# struct comes from its own `#[MemoryPackable(valueType: true)]` declaration.
+
 ## Custom Formatter
 
 ```php

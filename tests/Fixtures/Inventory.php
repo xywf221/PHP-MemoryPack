@@ -14,6 +14,6 @@ final class Inventory
     #[MemoryPackField(order: 0, type: Type::DICT, keyType: Type::STRING, elementType: Type::INT32)]
     public array $counts;
 
-    #[MemoryPackField(order: 1, type: Type::DICT, keyType: Type::STRING, elementType: Type::OBJECT, elementClass: Point::class, elementValueType: true)]
+    #[MemoryPackField(order: 1, type: Type::DICT, keyType: Type::STRING, elementClass: Point::class)]
     public array $locations;
 }

@@ -11,9 +11,9 @@ use MemoryPack\Mapping\Type;
 #[MemoryPackable]
 final class Shape
 {
-    #[MemoryPackField(order: 0, type: Type::OBJECT, valueType: true)]
+    #[MemoryPackField(order: 0)]
     public Point $origin;
 
-    #[MemoryPackField(order: 1, type: Type::LIST, elementType: Type::OBJECT, elementClass: Point::class, elementValueType: true)]
+    #[MemoryPackField(order: 1, type: Type::LIST, elementClass: Point::class)]
     public array $points;
 }

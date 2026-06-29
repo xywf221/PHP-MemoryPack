@@ -15,12 +15,9 @@ final class MemoryPackField
         public readonly bool|null $nullable = null,
         public readonly string|null $elementType = null,
         public readonly string|null $elementClass = null,
-        public readonly bool $elementValueType = false,
         public readonly string|null $keyType = null,
         public readonly string|null $keyClass = null,
-        public readonly bool $keyValueType = false,
         public readonly string|null $class = null,
-        public readonly bool $valueType = false,
         public readonly string|null $format = null,
         public readonly string|null $formatter = null,
     ) {

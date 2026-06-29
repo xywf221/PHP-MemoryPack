@@ -60,8 +60,9 @@ final class SchemaFactory
     private function createField(ReflectionProperty $property, MemoryPackField|null $attribute): FieldDefinition
     {
         $formatterAttribute = $this->propertyAttribute($property, MemoryPackFormatter::class);
-        $type = $attribute?->type ?? $this->inferType($property);
-        $className = $attribute?->class ?? ($type === Type::OBJECT ? $this->objectClass($property) : null);
+        $className = $attribute?->class ?? $this->objectClass($property);
+        $type = $this->declaredType($property, $attribute, $className);
+        $className = $type === Type::OBJECT ? $className : null;
 
         return new FieldDefinition(
             $property->getName(),
@@ -72,7 +73,7 @@ final class SchemaFactory
             $attribute?->formatter ?? $formatterAttribute?->formatterClass,
             $attribute?->format,
             $className,
-            $attribute?->valueType ?? $this->isValueType($className),
+            $this->isValueType($className),
             $property->getName(),
         );
     }
@@ -100,6 +101,15 @@ final class SchemaFactory
         $attributes = $class->getAttributes($attributeClass);
 
         return $attributes === [] ? null : $attributes[0]->newInstance();
+    }
+
+    private function declaredType(ReflectionProperty $property, MemoryPackField|null $attribute, string|null $className): string
+    {
+        if ($attribute?->class !== null || ($attribute?->type === null && $className !== null)) {
+            return Type::OBJECT;
+        }
+
+        return $attribute?->type ?? $this->inferType($property);
     }
 
     private function inferType(ReflectionProperty $property): string
@@ -132,20 +142,22 @@ final class SchemaFactory
         if ($type !== Type::LIST && $type !== Type::DICT) {
             return null;
         }
-        if ($attribute?->elementType === null) {
-            throw new \InvalidArgumentException("Collection property {$property->getName()} needs MemoryPackField elementType.");
+
+        $elementType = $attribute?->elementClass !== null ? Type::OBJECT : $attribute?->elementType;
+        if ($elementType === null) {
+            throw new \InvalidArgumentException("Collection property {$property->getName()} needs MemoryPackField elementType or elementClass.");
         }
 
         return new FieldDefinition(
             $property->getName() . 'Value',
-            $attribute->elementType,
+            $elementType,
             false,
             null,
             null,
             null,
             null,
-            $attribute->elementClass,
-            $attribute->elementValueType || $this->isValueType($attribute->elementClass),
+            $attribute?->elementClass,
+            $this->isValueType($attribute?->elementClass),
         );
     }
 
@@ -155,20 +167,22 @@ final class SchemaFactory
         if ($type !== Type::DICT) {
             return null;
         }
-        if ($attribute?->keyType === null) {
-            throw new \InvalidArgumentException("Dictionary property {$property->getName()} needs MemoryPackField keyType.");
+
+        $keyType = $attribute?->keyClass !== null ? Type::OBJECT : $attribute?->keyType;
+        if ($keyType === null) {
+            throw new \InvalidArgumentException("Dictionary property {$property->getName()} needs MemoryPackField keyType or keyClass.");
         }
 
         return new FieldDefinition(
             $property->getName() . 'Key',
-            $attribute->keyType,
+            $keyType,
             false,
             null,
             null,
             null,
             null,
-            $attribute->keyClass,
-            $attribute->keyValueType || $this->isValueType($attribute->keyClass),
+            $attribute?->keyClass,
+            $this->isValueType($attribute?->keyClass),
         );
     }
 
