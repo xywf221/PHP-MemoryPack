@@ -10,6 +10,7 @@ use MemoryPack\Mapping\FieldDefinition;
 
 final class JsonFormatter implements MemoryPackFormatterInterface
 {
+    #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         if ($value === null && !$field->nullable) {
@@ -19,6 +20,7 @@ final class JsonFormatter implements MemoryPackFormatterInterface
         $writer->writeString($value === null ? null : json_encode($value, JSON_THROW_ON_ERROR));
     }
 
+    #[\Override]
     public function deserialize(MemoryPackReader $reader, FieldDefinition $field, FormatterRegistry $registry): mixed
     {
         $value = $reader->readString();

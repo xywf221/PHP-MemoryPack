@@ -15,6 +15,7 @@ final class PrimitiveFormatter implements MemoryPackFormatterInterface
     {
     }
 
+    #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         if ($value === null) {
@@ -35,6 +36,7 @@ final class PrimitiveFormatter implements MemoryPackFormatterInterface
         };
     }
 
+    #[\Override]
     public function deserialize(MemoryPackReader $reader, FieldDefinition $field, FormatterRegistry $registry): mixed
     {
         return match ($this->type) {

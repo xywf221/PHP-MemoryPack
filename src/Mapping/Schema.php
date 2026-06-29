@@ -10,9 +10,9 @@ final class Schema
      * @param list<FieldDefinition> $fields
      */
     public function __construct(
-        public readonly array $fields,
-        public readonly string|null $className = null,
-        public readonly bool $valueType = false,
+        public private(set) array $fields,
+        public private(set) string|null $className = null,
+        public private(set) bool $valueType = false,
     ) {
     }
 }

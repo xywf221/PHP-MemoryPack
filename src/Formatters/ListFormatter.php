@@ -12,6 +12,7 @@ use MemoryPack\Mapping\Type;
 
 final class ListFormatter implements MemoryPackFormatterInterface
 {
+    #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         if ($field->element === null) {
@@ -39,6 +40,7 @@ final class ListFormatter implements MemoryPackFormatterInterface
         }
     }
 
+    #[\Override]
     public function deserialize(MemoryPackReader $reader, FieldDefinition $field, FormatterRegistry $registry): array|null
     {
         if ($field->element === null) {

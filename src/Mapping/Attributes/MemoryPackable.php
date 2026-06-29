@@ -9,7 +9,7 @@ use Attribute;
 #[Attribute(Attribute::TARGET_CLASS)]
 final class MemoryPackable
 {
-    public function __construct(public readonly bool $valueType = false)
+    public function __construct(public private(set) bool $valueType = false)
     {
     }
 }

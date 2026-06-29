@@ -6,21 +6,21 @@ namespace MemoryPack\Mapping;
 
 final class Type
 {
-    public const BOOL = 'bool';
-    public const UINT8 = 'uint8';
-    public const INT16 = 'int16';
-    public const UINT16 = 'uint16';
-    public const INT32 = 'int32';
-    public const UINT32 = 'uint32';
-    public const INT64 = 'int64';
-    public const FLOAT32 = 'float32';
-    public const FLOAT64 = 'float64';
-    public const STRING = 'string';
-    public const LIST = 'list';
-    public const DICT = 'dict';
-    public const DATETIME = 'datetime';
-    public const JSON = 'json';
-    public const OBJECT = 'object';
+    public const string BOOL = 'bool';
+    public const string UINT8 = 'uint8';
+    public const string INT16 = 'int16';
+    public const string UINT16 = 'uint16';
+    public const string INT32 = 'int32';
+    public const string UINT32 = 'uint32';
+    public const string INT64 = 'int64';
+    public const string FLOAT32 = 'float32';
+    public const string FLOAT64 = 'float64';
+    public const string STRING = 'string';
+    public const string LIST = 'list';
+    public const string DICT = 'dict';
+    public const string DATETIME = 'datetime';
+    public const string JSON = 'json';
+    public const string OBJECT = 'object';
 
     private function __construct()
     {

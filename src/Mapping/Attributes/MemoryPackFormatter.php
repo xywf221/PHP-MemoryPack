@@ -9,7 +9,7 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 final class MemoryPackFormatter
 {
-    public function __construct(public readonly string $formatterClass)
+    public function __construct(public private(set) string $formatterClass)
     {
     }
 }

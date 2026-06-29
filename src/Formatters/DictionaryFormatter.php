@@ -12,6 +12,7 @@ use MemoryPack\Mapping\Type;
 
 final class DictionaryFormatter implements MemoryPackFormatterInterface
 {
+    #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         if ($field->key === null || $field->element === null) {
@@ -35,6 +36,7 @@ final class DictionaryFormatter implements MemoryPackFormatterInterface
         }
     }
 
+    #[\Override]
     public function deserialize(MemoryPackReader $reader, FieldDefinition $field, FormatterRegistry $registry): array|null
     {
         if ($field->key === null || $field->element === null) {

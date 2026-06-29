@@ -12,6 +12,8 @@ MemoryPack is not self-describing. PHP must read and write fields in the same or
 
 The common entry point is `MemoryPack\MemoryPackSerializer`.
 
+Requires PHP 8.4 or newer.
+
 ## Manual Mapping
 
 ```php
@@ -189,4 +191,3 @@ final class Player
 - `object`
 
 Current boundary: this is not a full C# source-generator port. It does not yet implement unions, circular reference tracking, version-tolerant object headers, unmanaged array fast paths, dictionaries, GUIDs, or the full MemoryPack formatter ecosystem.
-

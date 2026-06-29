@@ -56,5 +56,3 @@ final class FormatterRegistry
         return $this->get($field->type);
     }
 }
-
-

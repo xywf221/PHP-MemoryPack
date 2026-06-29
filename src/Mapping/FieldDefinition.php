@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace MemoryPack\Mapping;
 
-class FieldDefinition
+final class FieldDefinition
 {
     public function __construct(
-        public readonly string $name,
-        public readonly string $type,
-        public readonly bool $nullable = false,
-        public readonly FieldDefinition|null $element = null,
-        public readonly FieldDefinition|null $key = null,
-        public readonly string|null $formatterClass = null,
-        public readonly string|null $format = null,
-        public readonly string|null $className = null,
-        public readonly bool $valueType = false,
-        public readonly string|null $propertyName = null,
+        public private(set) string $name,
+        public private(set) string $type,
+        public private(set) bool $nullable = false,
+        public private(set) FieldDefinition|null $element = null,
+        public private(set) FieldDefinition|null $key = null,
+        public private(set) string|null $formatterClass = null,
+        public private(set) string|null $format = null,
+        public private(set) string|null $className = null,
+        public private(set) bool $valueType = false,
+        public private(set) string|null $propertyName = null,
     ) {
     }
 

@@ -17,20 +17,21 @@ use ReflectionClass;
 
 final class MemoryPackSerializer
 {
-    public const BOOL = Type::BOOL;
-    public const UINT8 = Type::UINT8;
-    public const INT16 = Type::INT16;
-    public const UINT16 = Type::UINT16;
-    public const INT32 = Type::INT32;
-    public const UINT32 = Type::UINT32;
-    public const INT64 = Type::INT64;
-    public const FLOAT32 = Type::FLOAT32;
-    public const FLOAT64 = Type::FLOAT64;
-    public const STRING = Type::STRING;
-    public const LIST = Type::LIST;
-    public const DATETIME = Type::DATETIME;
-    public const JSON = Type::JSON;
-    public const OBJECT = Type::OBJECT;
+    public const string BOOL = Type::BOOL;
+    public const string UINT8 = Type::UINT8;
+    public const string INT16 = Type::INT16;
+    public const string UINT16 = Type::UINT16;
+    public const string INT32 = Type::INT32;
+    public const string UINT32 = Type::UINT32;
+    public const string INT64 = Type::INT64;
+    public const string FLOAT32 = Type::FLOAT32;
+    public const string FLOAT64 = Type::FLOAT64;
+    public const string STRING = Type::STRING;
+    public const string LIST = Type::LIST;
+    public const string DICT = Type::DICT;
+    public const string DATETIME = Type::DATETIME;
+    public const string JSON = Type::JSON;
+    public const string OBJECT = Type::OBJECT;
 
     private static FormatterRegistry|null $registry = null;
     private static SchemaFactory|null $schemaFactory = null;

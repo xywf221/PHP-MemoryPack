@@ -12,11 +12,13 @@ use MemoryPack\Mapping\FieldDefinition;
 
 final class ReverseStringFormatter implements MemoryPackFormatterInterface
 {
+    #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         $writer->writeString($value === null ? null : strrev((string) $value));
     }
 
+    #[\Override]
     public function deserialize(MemoryPackReader $reader, FieldDefinition $field, FormatterRegistry $registry): mixed
     {
         $value = $reader->readString();

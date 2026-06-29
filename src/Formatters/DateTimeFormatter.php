@@ -12,6 +12,7 @@ use MemoryPack\Mapping\FieldDefinition;
 
 final class DateTimeFormatter implements MemoryPackFormatterInterface
 {
+    #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         if ($value === null && !$field->nullable) {
@@ -24,6 +25,7 @@ final class DateTimeFormatter implements MemoryPackFormatterInterface
         $writer->writeString($value?->format($field->format ?? DateTimeInterface::ATOM));
     }
 
+    #[\Override]
     public function deserialize(MemoryPackReader $reader, FieldDefinition $field, FormatterRegistry $registry): DateTimeImmutable|null
     {
         $value = $reader->readString();

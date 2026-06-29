@@ -10,6 +10,7 @@ use MemoryPack\Mapping\FieldDefinition;
 
 final class StringFormatter implements MemoryPackFormatterInterface
 {
+    #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         if ($value === null && !$field->nullable) {
@@ -19,6 +20,7 @@ final class StringFormatter implements MemoryPackFormatterInterface
         $writer->writeString($value === null ? null : (string) $value);
     }
 
+    #[\Override]
     public function deserialize(MemoryPackReader $reader, FieldDefinition $field, FormatterRegistry $registry): string|null
     {
         return $reader->readString();

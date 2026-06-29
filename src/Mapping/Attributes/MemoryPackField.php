@@ -10,16 +10,16 @@ use Attribute;
 final class MemoryPackField
 {
     public function __construct(
-        public readonly int|null $order = null,
-        public readonly string|null $type = null,
-        public readonly bool|null $nullable = null,
-        public readonly string|null $elementType = null,
-        public readonly string|null $elementClass = null,
-        public readonly string|null $keyType = null,
-        public readonly string|null $keyClass = null,
-        public readonly string|null $class = null,
-        public readonly string|null $format = null,
-        public readonly string|null $formatter = null,
+        public private(set) int|null $order = null,
+        public private(set) string|null $type = null,
+        public private(set) bool|null $nullable = null,
+        public private(set) string|null $elementType = null,
+        public private(set) string|null $elementClass = null,
+        public private(set) string|null $keyType = null,
+        public private(set) string|null $keyClass = null,
+        public private(set) string|null $class = null,
+        public private(set) string|null $format = null,
+        public private(set) string|null $formatter = null,
     ) {
     }
 }
