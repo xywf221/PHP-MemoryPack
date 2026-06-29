@@ -6,7 +6,7 @@ namespace MemoryPack\Core;
 
 use MemoryPack\Exception\MemoryPackException;
 
-class MemoryPackReader
+final class MemoryPackReader
 {
     private int $offset = 0;
 
@@ -41,9 +41,6 @@ class MemoryPackReader
         }
         if ($length === 0) {
             return '';
-        }
-        if ($length > 0) {
-            return $this->decodeUtf16Le($this->readRaw($length * 2));
         }
 
         $utf8Length = ~$length;
@@ -125,20 +122,5 @@ class MemoryPackReader
         $this->offset += $length;
 
         return $bytes;
-    }
-
-    private function decodeUtf16Le(string $bytes): string
-    {
-        if (function_exists('mb_convert_encoding')) {
-            return mb_convert_encoding($bytes, 'UTF-8', 'UTF-16LE');
-        }
-        if (function_exists('iconv')) {
-            $value = iconv('UTF-16LE', 'UTF-8', $bytes);
-            if ($value !== false) {
-                return $value;
-            }
-        }
-
-        throw new MemoryPackException('Reading UTF-16 strings requires mbstring or iconv.');
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MemoryPack\Core;
 
-class MemoryPackWriter
+final class MemoryPackWriter
 {
     private string $buffer = '';
 
@@ -59,7 +59,7 @@ class MemoryPackWriter
         }
 
         $this->writeInt32(~strlen($value));
-        $this->writeInt32($this->utf16Length($value));
+        $this->writeInt32(0);
         $this->writeRaw($value);
     }
 
@@ -127,18 +127,4 @@ class MemoryPackWriter
         $this->buffer .= $bytes;
     }
 
-    private function utf16Length(string $value): int
-    {
-        if (function_exists('mb_convert_encoding')) {
-            return intdiv(strlen(mb_convert_encoding($value, 'UTF-16LE', 'UTF-8')), 2);
-        }
-        if (function_exists('iconv')) {
-            $encoded = iconv('UTF-8', 'UTF-16LE', $value);
-            if ($encoded !== false) {
-                return intdiv(strlen($encoded), 2);
-            }
-        }
-
-        throw new \RuntimeException('Writing strings requires mbstring or iconv.');
-    }
 }

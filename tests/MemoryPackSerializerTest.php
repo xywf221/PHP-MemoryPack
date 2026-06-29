@@ -16,6 +16,8 @@ use MemoryPack\Tests\Fixtures\InteropPayload;
 use MemoryPack\Tests\Fixtures\Player;
 use MemoryPack\Tests\Fixtures\Point;
 use MemoryPack\Tests\Fixtures\Shape;
+use MemoryPack\Tests\Fixtures\Utf16Payload;
+use MemoryPack\Formatters\Utf16StringFormatter;
 
 it('serializes schema driven values using the MemoryPack wire format', function (): void {
     $schema = [
@@ -36,7 +38,7 @@ it('serializes schema driven values using the MemoryPack wire format', function 
 
     expect(bin2hex($payload[0]))->toBe('05')
         ->and(bin2hex(substr($payload, 1, 4)))->toBe('2a000000')
-        ->and(bin2hex(substr($payload, 5, 14)))->toBe('f9ffffff02000000e99bb7e5b091');
+        ->and(bin2hex(substr($payload, 5, 14)))->toBe('f9ffffff00000000e99bb7e5b091');
 
     $result = MemoryPackSerializer::deserialize($schema, $payload);
 
@@ -70,9 +72,9 @@ it('rejects truncated payloads', function (): void {
     MemoryPackSerializer::deserialize([FieldDefinition::of('id', Type::INT32)], $writer->bytes());
 })->throws(MemoryPackException::class);
 
-it('reads utf16 strings and negative int64 values', function (): void {
-    $reader = new MemoryPackReader("\x02\x00\x00\x00R\x00e\x00");
-    expect($reader->readString())->toBe('Re');
+it('reads default utf8 strings and negative int64 values', function (): void {
+    $reader = new MemoryPackReader("\xf9\xff\xff\xff\x00\x00\x00\x00\xe9\x9b\xb7\xe5\xb0\x91");
+    expect($reader->readString())->toBe('雷少');
 
     $writer = new MemoryPackWriter();
     $writer->writeInt64(-1);
@@ -81,6 +83,29 @@ it('reads utf16 strings and negative int64 values', function (): void {
 
     expect($reader->readInt64())->toBe(-1)
         ->and($reader->readInt64())->toBe(PHP_INT_MIN);
+});
+
+it('keeps string fields on the default utf8 wire format', function (): void {
+    $schema = [FieldDefinition::of('name', Type::STRING)];
+    $payload = MemoryPackSerializer::serialize($schema, ['name' => '雷少']);
+
+    expect(bin2hex(substr($payload, 1)))->toBe('f9ffffff00000000e99bb7e5b091');
+    expect(MemoryPackSerializer::deserialize($schema, $payload))->toBe(['name' => '雷少']);
+});
+
+it('round trips utf16 formatter payloads with csharp', function (): void {
+    $schema = [FieldDefinition::of('name', Type::STRING)->withFormatter(Utf16StringFormatter::class)];
+    $payload = MemoryPackSerializer::serialize($schema, ['name' => '雷少']);
+
+    expect(bin2hex($payload))->toBe('0102000000f796115c');
+    expect(MemoryPackSerializer::deserialize($schema, $payload))->toBe(['name' => '雷少']);
+
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
+    $csharpPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'utf16-write']));
+    expect(bin2hex(base64_decode($csharpPayload, true)))->toBe('0102000000f796115c');
+
+    $phpPayload = base64_encode($payload);
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'utf16-read', $phpPayload])))->toBe('ok');
 });
 
 it('round trips nested objects recursively', function (): void {

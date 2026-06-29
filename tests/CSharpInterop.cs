@@ -52,6 +52,38 @@ if (args[0] == "read")
     return 0;
 }
 
+if (args[0] == "utf16-write")
+{
+    var payload = new Utf16Payload
+    {
+        Name = "雷少",
+    };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "utf16-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<Utf16Payload>(Convert.FromBase64String(args[1]));
+    if (payload is null)
+    {
+        Console.Error.WriteLine("Payload was null.");
+        return 1;
+    }
+
+    Assert(payload.Name == "雷少", "name");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
 Console.Error.WriteLine("Unknown command.");
 return 2;
 
@@ -87,4 +119,11 @@ public partial struct Point
     public int X { get; set; }
 
     public int Y { get; set; }
+}
+
+[MemoryPackable]
+public partial class Utf16Payload
+{
+    [Utf16StringFormatter]
+    public string Name { get; set; } = "";
 }

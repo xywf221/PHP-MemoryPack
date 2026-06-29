@@ -65,12 +65,12 @@ final class MemoryPackSerializer
     }
 
     /**
-     * @param class-string|list<FieldDefinition>|Schema $schema
+     * @param list<FieldDefinition>|Schema $schema
      * @return array<string, mixed>|object|null
      */
-    public static function deserialize(string|array|Schema $schema, string $payload): array|object|null
+    public static function deserialize(array|Schema $schema, string $payload): array|object|null
     {
-        $schema = is_string($schema) ? self::schemaFactory()->create($schema) : self::normalizeSchema($schema);
+        $schema = self::normalizeSchema($schema);
         $reader = new MemoryPackReader($payload);
         $value = self::readObject($reader, $schema, !$schema->valueType);
         if ($reader->remaining() !== 0) {
@@ -98,7 +98,7 @@ final class MemoryPackSerializer
      */
     public static function deserializeObject(string $className, string $payload): object|null
     {
-        $value = self::deserialize($className, $payload);
+        $value = self::deserialize(self::schemaFactory()->create($className), $payload);
 
         return $value instanceof $className ? $value : null;
     }
@@ -148,13 +148,10 @@ final class MemoryPackSerializer
         }
 
         $result = [];
-        for ($i = 0; $i < $memberCount; $i++) {
-            $field = $schema->fields[$i];
-            $result[$field->propertyName ?? $field->name] = self::readField($reader, $field);
-        }
-        for ($i = $memberCount; $i < count($schema->fields); $i++) {
-            $field = $schema->fields[$i];
-            $result[$field->propertyName ?? $field->name] = null;
+        foreach ($schema->fields as $index => $field) {
+            $result[$field->propertyName ?? $field->name] = $index < $memberCount
+                ? self::readField($reader, $field)
+                : null;
         }
 
         return $result;
