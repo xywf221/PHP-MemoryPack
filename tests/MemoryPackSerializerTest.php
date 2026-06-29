@@ -11,7 +11,9 @@ use MemoryPack\Mapping\Type;
 use MemoryPack\Tests\Fixtures\A;
 use MemoryPack\Tests\Fixtures\B;
 use MemoryPack\Tests\Fixtures\C;
+use MemoryPack\Tests\Fixtures\EquipmentItem;
 use MemoryPack\Tests\Fixtures\Inventory;
+use MemoryPack\Tests\Fixtures\RandomOption;
 use MemoryPack\Tests\Fixtures\InteropPayload;
 use MemoryPack\Tests\Fixtures\Forecast;
 use MemoryPack\Tests\Fixtures\Player;
@@ -263,6 +265,29 @@ it('round trips a self-serializing type at the top level', function (): void {
 
     expect($result)->toBeInstanceOf(Temperature::class)
         ->and($result->celsius)->toBe(7);
+});
+
+it('writes unmanaged scalars then a nested packable via writePackable', function (): void {
+    $item = new EquipmentItem();
+    $item->itemId = 1001;
+    $item->sealed = true;
+    $item->durability = 250;
+    $item->randomOption = RandomOption::of(7, -3);
+
+    $payload = MemoryPackSerializer::serializeObject($item);
+
+    // uint32 itemId, bool sealed, uint16 durability, then the nested packable's own bytes.
+    expect(bin2hex($payload))->toBe('e9030000' . '01' . 'fa00' . '07000000' . 'fdffffff');
+
+    $result = MemoryPackSerializer::deserializeObject(EquipmentItem::class, $payload);
+
+    expect($result)->toBeInstanceOf(EquipmentItem::class)
+        ->and($result->itemId)->toBe(1001)
+        ->and($result->sealed)->toBeTrue()
+        ->and($result->durability)->toBe(250)
+        ->and($result->randomOption)->toBeInstanceOf(RandomOption::class)
+        ->and($result->randomOption->optionId)->toBe(7)
+        ->and($result->randomOption->value)->toBe(-3);
 });
 
 function runCommand(array $command): string

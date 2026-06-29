@@ -222,6 +222,41 @@ final class Temperature implements MemoryPackableInterface
 
 Any field typed as `Temperature`, or a list or dictionary of `Temperature`, now uses these methods automatically with no per-field configuration.
 
+### Nesting Packables
+
+Inside `memoryPackSerialize`/`memoryPackDeserialize` you often write a run of scalars and then nest another object, like C#'s `writer.WriteUnmanaged(...)` followed by `writer.WritePackable(child)`. Scalars map to the writer/reader primitives directly. For the nested object, use `MemoryPackSerializer::writePackable` / `readPackable`, which mirror C#'s `WritePackable<T>` / `ReadPackable<T>`. They resolve the target class automatically: if it implements `MemoryPackableInterface` its own wire format is used, otherwise the default schema mapping applies.
+
+```php
+use MemoryPack\MemoryPackSerializer;
+
+final class EquipmentItem implements MemoryPackableInterface
+{
+    public int $itemId;
+    public bool $sealed;
+    public RandomOption $randomOption;
+
+    public static function memoryPackSerialize(MemoryPackWriter $writer, object|null $value): void
+    {
+        // unmanaged scalars: no object header
+        $writer->writeUInt32($value->itemId);
+        $writer->writeBool($value->sealed);
+
+        // nested packable on the same writer
+        MemoryPackSerializer::writePackable($writer, $value->randomOption);
+    }
+
+    public static function memoryPackDeserialize(MemoryPackReader $reader): self
+    {
+        $item = new self();
+        $item->itemId = $reader->readUInt32();
+        $item->sealed = $reader->readBool();
+        $item->randomOption = MemoryPackSerializer::readPackable($reader, RandomOption::class);
+
+        return $item;
+    }
+}
+```
+
 To supply only a `Schema` and reuse the default wire format, implement `MemoryPackSchemaInterface` with `memoryPackSchema(): Schema` instead.
 
 ## Supported Types

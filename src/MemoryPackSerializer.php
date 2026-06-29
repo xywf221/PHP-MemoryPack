@@ -130,6 +130,39 @@ final class MemoryPackSerializer
         return self::readNestedObject($reader, $field);
     }
 
+    /**
+     * Write a single nested object onto an existing writer, mirroring C#'s
+     * MemoryPackWriter.WritePackable. The target class may implement
+     * MemoryPackableInterface (its own wire format is used) or rely on the
+     * default schema mapping. Use this inside memoryPackSerialize.
+     *
+     * @param class-string|null $className defaults to $value::class
+     */
+    public static function writePackable(MemoryPackWriter $writer, object|null $value, string|null $className = null, bool $nullable = true): void
+    {
+        $className ??= $value !== null ? $value::class : null;
+        if ($className === null) {
+            throw new \InvalidArgumentException('writePackable needs a value or an explicit class name.');
+        }
+
+        self::writeNestedObject($writer, new FieldDefinition('packable', Type::OBJECT, $nullable, null, null, null, null, $className), $value);
+    }
+
+    /**
+     * Read a single nested object from an existing reader, mirroring C#'s
+     * MemoryPackReader.ReadPackable. Use this inside memoryPackDeserialize.
+     *
+     * @template T of object
+     * @param class-string<T> $className
+     * @return T|null
+     */
+    public static function readPackable(MemoryPackReader $reader, string $className, bool $nullable = true): object|null
+    {
+        $value = self::readNestedObject($reader, new FieldDefinition('packable', Type::OBJECT, $nullable, null, null, null, null, $className));
+
+        return $value instanceof $className ? $value : null;
+    }
+
     private static function writeObject(MemoryPackWriter $writer, Schema $schema, array|object|null $value, bool $writeHeader): void
     {
         if ($value === null) {
