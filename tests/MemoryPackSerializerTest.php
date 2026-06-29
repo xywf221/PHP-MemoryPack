@@ -174,9 +174,9 @@ it('round trips dictionary attributes with value object values', function (): vo
         ->and($result->locations['spawn']->y)->toBe(4);
 });
 it('interoperates with real C# MemoryPack serialization', function (): void {
-    $project = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop' . DIRECTORY_SEPARATOR . 'CSharpInterop.csproj';
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
 
-    $csharpPayload = trim(runCommand(['dotnet', 'run', '--project', $project, '--', 'write']));
+    $csharpPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'write']));
     $fromCsharp = MemoryPackSerializer::deserializeObject(InteropPayload::class, base64_decode($csharpPayload, true));
 
     expect($fromCsharp)->toBeInstanceOf(InteropPayload::class)
@@ -202,7 +202,7 @@ it('interoperates with real C# MemoryPack serialization', function (): void {
     $payload->origin->y = 4;
 
     $phpPayload = base64_encode(MemoryPackSerializer::serializeObject($payload));
-    expect(trim(runCommand(['dotnet', 'run', '--project', $project, '--', 'read', $phpPayload])))->toBe('ok');
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'read', $phpPayload])))->toBe('ok');
 });
 
 function runCommand(array $command): string

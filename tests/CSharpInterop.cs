@@ -1,3 +1,5 @@
+#:package MemoryPack@1.21.4
+
 using MemoryPack;
 
 if (args.Length < 1)
