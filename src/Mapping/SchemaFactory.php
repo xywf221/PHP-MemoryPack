@@ -1,0 +1,201 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MemoryPack\Mapping;
+
+use MemoryPack\Mapping\Attributes\MemoryPackable;
+use MemoryPack\Mapping\Attributes\MemoryPackField;
+use MemoryPack\Mapping\Attributes\MemoryPackFormatter;
+use ReflectionClass;
+use ReflectionNamedType;
+use ReflectionProperty;
+
+final class SchemaFactory
+{
+    /**
+     * @var array<class-string, Schema>
+     */
+    private array $cache = [];
+
+    /**
+     * @param class-string $className
+     */
+    public function create(string $className): Schema
+    {
+        if (isset($this->cache[$className])) {
+            return $this->cache[$className];
+        }
+        if (is_subclass_of($className, MemoryPackableInterface::class)) {
+            return $this->cache[$className] = $className::memoryPackSchema();
+        }
+
+        $class = new ReflectionClass($className);
+        $memoryPackable = $this->classAttribute($class, MemoryPackable::class);
+        $fields = [];
+        $index = 0;
+
+        foreach ($class->getProperties() as $property) {
+            if ($property->isStatic()) {
+                continue;
+            }
+
+            $fieldAttribute = $this->propertyAttribute($property, MemoryPackField::class);
+            if (!$property->isPublic() && $fieldAttribute === null) {
+                continue;
+            }
+
+            $fields[] = [
+                'order' => $fieldAttribute?->order ?? $index,
+                'field' => $this->createField($property, $fieldAttribute),
+            ];
+            $index++;
+        }
+
+        usort($fields, static fn (array $left, array $right): int => $left['order'] <=> $right['order']);
+
+        return $this->cache[$className] = new Schema(array_column($fields, 'field'), $className, $memoryPackable?->valueType ?? false);
+    }
+
+    private function createField(ReflectionProperty $property, MemoryPackField|null $attribute): FieldDefinition
+    {
+        $formatterAttribute = $this->propertyAttribute($property, MemoryPackFormatter::class);
+        $type = $attribute?->type ?? $this->inferType($property);
+        $className = $attribute?->class ?? ($type === Type::OBJECT ? $this->objectClass($property) : null);
+
+        return new FieldDefinition(
+            $property->getName(),
+            $type,
+            $attribute?->nullable ?? $this->allowsNull($property),
+            $this->elementDefinition($property, $attribute),
+            $this->keyDefinition($property, $attribute),
+            $attribute?->formatter ?? $formatterAttribute?->formatterClass,
+            $attribute?->format,
+            $className,
+            $attribute?->valueType ?? $this->isValueType($className),
+            $property->getName(),
+        );
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T> $attributeClass
+     * @return T|null
+     */
+    private function propertyAttribute(ReflectionProperty $property, string $attributeClass): object|null
+    {
+        $attributes = $property->getAttributes($attributeClass);
+
+        return $attributes === [] ? null : $attributes[0]->newInstance();
+    }
+
+    /**
+     * @template T of object
+     * @param ReflectionClass<object> $class
+     * @param class-string<T> $attributeClass
+     * @return T|null
+     */
+    private function classAttribute(ReflectionClass $class, string $attributeClass): object|null
+    {
+        $attributes = $class->getAttributes($attributeClass);
+
+        return $attributes === [] ? null : $attributes[0]->newInstance();
+    }
+
+    private function inferType(ReflectionProperty $property): string
+    {
+        $type = $property->getType();
+        if (!$type instanceof ReflectionNamedType) {
+            throw new \InvalidArgumentException("Property {$property->getName()} needs a MemoryPackField type.");
+        }
+
+        $name = $type->getName();
+
+        return match ($name) {
+            'bool' => Type::BOOL,
+            'int' => Type::INT32,
+            'float' => Type::FLOAT64,
+            'string' => Type::STRING,
+            'array' => Type::LIST,
+            default => class_exists($name) ? Type::OBJECT : throw new \InvalidArgumentException("Unsupported property type {$name}."),
+        };
+    }
+
+    private function allowsNull(ReflectionProperty $property): bool
+    {
+        return $property->getType()?->allowsNull() ?? true;
+    }
+
+    private function elementDefinition(ReflectionProperty $property, MemoryPackField|null $attribute): FieldDefinition|null
+    {
+        $type = $attribute?->type ?? $this->safeInferType($property);
+        if ($type !== Type::LIST && $type !== Type::DICT) {
+            return null;
+        }
+        if ($attribute?->elementType === null) {
+            throw new \InvalidArgumentException("Collection property {$property->getName()} needs MemoryPackField elementType.");
+        }
+
+        return new FieldDefinition(
+            $property->getName() . 'Value',
+            $attribute->elementType,
+            false,
+            null,
+            null,
+            null,
+            null,
+            $attribute->elementClass,
+            $attribute->elementValueType || $this->isValueType($attribute->elementClass),
+        );
+    }
+
+    private function keyDefinition(ReflectionProperty $property, MemoryPackField|null $attribute): FieldDefinition|null
+    {
+        $type = $attribute?->type ?? $this->safeInferType($property);
+        if ($type !== Type::DICT) {
+            return null;
+        }
+        if ($attribute?->keyType === null) {
+            throw new \InvalidArgumentException("Dictionary property {$property->getName()} needs MemoryPackField keyType.");
+        }
+
+        return new FieldDefinition(
+            $property->getName() . 'Key',
+            $attribute->keyType,
+            false,
+            null,
+            null,
+            null,
+            null,
+            $attribute->keyClass,
+            $attribute->keyValueType || $this->isValueType($attribute->keyClass),
+        );
+    }
+
+    private function safeInferType(ReflectionProperty $property): string|null
+    {
+        try {
+            return $this->inferType($property);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    private function objectClass(ReflectionProperty $property): string|null
+    {
+        $type = $property->getType();
+
+        return $type instanceof ReflectionNamedType && !$type->isBuiltin() ? $type->getName() : null;
+    }
+
+    private function isValueType(string|null $className): bool
+    {
+        if ($className === null || !class_exists($className)) {
+            return false;
+        }
+
+        $attribute = $this->classAttribute(new ReflectionClass($className), MemoryPackable::class);
+
+        return $attribute?->valueType ?? false;
+    }
+}
