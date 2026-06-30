@@ -99,7 +99,7 @@ final class MemoryPackSerializer
 
         $schema = self::schemaFactory()->create($value::class);
         $writer = new MemoryPackWriter();
-        self::writeTaggedObjectPayload($writer, $schema, $value, !$schema->valueType);
+        self::writeObjectPayload($writer, $schema, $value, !$schema->valueType);
 
         return $writer->bytes();
     }
@@ -263,7 +263,7 @@ final class MemoryPackSerializer
             self::writeUnionObject($writer, $schema, $value);
             return;
         }
-        self::writeTaggedObjectPayload($writer, $schema, $value, !$field->valueType && !$schema->valueType);
+        self::writeObjectPayload($writer, $schema, $value, !$field->valueType && !$schema->valueType);
     }
 
     private static function readNestedObject(MemoryPackReader $reader, FieldDefinition $field): object|array|null
@@ -374,7 +374,7 @@ final class MemoryPackSerializer
         throw new \InvalidArgumentException("Union {$schema->className} does not define {$valueClass}.");
     }
 
-    private static function writeTaggedObjectPayload(MemoryPackWriter $writer, Schema $schema, object $value, bool $writeHeader): void
+    private static function writeObjectPayload(MemoryPackWriter $writer, Schema $schema, object $value, bool $writeHeader): void
     {
         if ($schema->unionTag !== null) {
             self::writeUnionTag($writer, $schema->unionTag);
