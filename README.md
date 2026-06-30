@@ -176,6 +176,7 @@ Union roots are interfaces or abstract classes marked with repeatable `#[MemoryP
 use MemoryPack\Mapping\Attributes\MemoryPackable;
 use MemoryPack\Mapping\Attributes\MemoryPackField;
 use MemoryPack\Mapping\Attributes\MemoryPackUnion;
+use MemoryPack\Mapping\Attributes\MemoryPackUnionTag;
 use MemoryPack\Mapping\Attributes\ObjectField;
 use MemoryPack\Mapping\Type;
 
@@ -205,6 +206,22 @@ use MemoryPack\MemoryPackSerializer;
 $payload = MemoryPackSerializer::serializeObjectAs(Animal::class, $cat);
 $animal = MemoryPackSerializer::deserializeObject(Animal::class, $payload);
 ```
+
+If you only need PHP to write a union value and do not want to declare the PHP union root, put `#[MemoryPackUnionTag]` on the concrete class. This is a write-only shortcut for `serializeObject()`.
+
+```php
+#[MemoryPackable]
+#[MemoryPackUnionTag(0)]
+final class Cat
+{
+    #[MemoryPackField(order: 0, type: Type::INT32)]
+    public int $lives;
+}
+
+$payload = MemoryPackSerializer::serializeObject($cat); // tag + Cat payload
+```
+
+`MemoryPackUnionTag` does not add automatic deserialization. To read union payloads in PHP, use a root with `#[MemoryPackUnion(...)]`; otherwise `deserializeObject(Cat::class, $payload)` will treat the tag as part of the object and fail or decode incorrectly.
 
 ## Arrays, Lists, and Dictionaries
 

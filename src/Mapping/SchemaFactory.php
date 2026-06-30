@@ -8,6 +8,7 @@ use MemoryPack\Mapping\Attributes\MemoryPackable;
 use MemoryPack\Mapping\Attributes\MemoryPackField;
 use MemoryPack\Mapping\Attributes\MemoryPackFormatter;
 use MemoryPack\Mapping\Attributes\MemoryPackUnion;
+use MemoryPack\Mapping\Attributes\MemoryPackUnionTag;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionProperty;
@@ -60,6 +61,7 @@ final class SchemaFactory
             $className,
             $memoryPackable?->valueType ?? false,
             $this->unionTags($class),
+            $this->unionTag($class),
         );
     }
 
@@ -142,6 +144,22 @@ final class SchemaFactory
         ksort($tags);
 
         return $tags;
+    }
+
+    /**
+     * @param ReflectionClass<object> $class
+     */
+    private function unionTag(ReflectionClass $class): int|null
+    {
+        $attribute = $this->classAttribute($class, MemoryPackUnionTag::class);
+        if (!$attribute instanceof MemoryPackUnionTag) {
+            return null;
+        }
+        if ($attribute->tag < 0 || $attribute->tag > 0xffff) {
+            throw new \InvalidArgumentException("MemoryPackUnionTag {$attribute->tag} is out of range.");
+        }
+
+        return $attribute->tag;
     }
 
     private function declaredType(ReflectionProperty $property, MemoryPackField|null $attribute, string|null $className): string

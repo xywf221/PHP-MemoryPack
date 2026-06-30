@@ -14,6 +14,7 @@ final class Schema
         public private(set) string|null $className = null,
         public private(set) bool $valueType = false,
         public private(set) array $unionTags = [],
+        public private(set) int|null $unionTag = null,
     ) {
     }
 

@@ -293,6 +293,30 @@ if (args[0] == "union-read")
     return 0;
 }
 
+if (args[0] == "union-value-write")
+{
+    IUnionAnimal payload = new UnionCat { Lives = 9 };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "union-value-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<IUnionAnimal>(Convert.FromBase64String(args[1]));
+
+    Assert(payload is UnionCat { Lives: 9 }, "union value");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
 if (args[0] == "abstract-union-write")
 {
     AbstractUnionShape payload = new UnionCircle { Radius = 8 };

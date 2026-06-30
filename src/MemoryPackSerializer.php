@@ -91,19 +91,32 @@ final class MemoryPackSerializer
 
     public static function serializeObject(object|null $value): string
     {
-        if ($value !== null && $value instanceof MemoryPackableInterface) {
-            $writer = new MemoryPackWriter();
-            $value::memoryPackSerialize($writer, $value);
-            return $writer->bytes();
-        }
-
         if ($value === null) {
             $writer = new MemoryPackWriter();
             $writer->writeNullObject();
             return $writer->bytes();
         }
 
-        return self::serialize(self::schemaFactory()->create($value::class), $value);
+        $schema = self::schemaFactory()->create($value::class);
+        if ($schema->unionTag === null) {
+            if ($value instanceof MemoryPackableInterface) {
+                $writer = new MemoryPackWriter();
+                $value::memoryPackSerialize($writer, $value);
+                return $writer->bytes();
+            }
+
+            return self::serialize($schema, $value);
+        }
+
+        $writer = new MemoryPackWriter();
+        self::writeUnionTag($writer, $schema->unionTag);
+        if ($value instanceof MemoryPackableInterface) {
+            $value::memoryPackSerialize($writer, $value);
+        } else {
+            self::writeObject($writer, $schema, $value, !$schema->valueType);
+        }
+
+        return $writer->bytes();
     }
 
     /**

@@ -343,10 +343,14 @@ it('round trips MemoryPackUnion interfaces and abstract roots with csharp', func
     $catPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, $cat);
     $dogPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, $dog);
     $nullPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, null);
+    $taggedCatPayload = MemoryPackSerializer::serializeObject($cat);
+    $taggedDogPayload = MemoryPackSerializer::serializeObject($dog);
 
     expect(bin2hex($catPayload))->toBe('000109000000')
         ->and(bin2hex($dogPayload))->toBe('fafa0001faffffff00000000706f636869')
-        ->and(bin2hex($nullPayload))->toBe('ff');
+        ->and(bin2hex($nullPayload))->toBe('ff')
+        ->and(bin2hex($taggedCatPayload))->toBe(bin2hex($catPayload))
+        ->and(bin2hex($taggedDogPayload))->toBe(bin2hex($dogPayload));
 
     expect(MemoryPackSerializer::deserializeObject(UnionAnimal::class, $catPayload))
         ->toBeInstanceOf(UnionCat::class)
@@ -395,6 +399,10 @@ it('round trips MemoryPackUnion interfaces and abstract roots with csharp', func
 
     $phpPayload = base64_encode($payload);
     expect(trim(runCommand(['dotnet', 'run', $script, '--', 'union-read', $phpPayload])))->toBe('ok');
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'union-value-read', base64_encode($taggedCatPayload)])))->toBe('ok');
+
+    $csharpValuePayload = trim(runCommand(['dotnet', 'run', $script, '--', 'union-value-write']));
+    expect(bin2hex(base64_decode($csharpValuePayload, true)))->toBe(bin2hex($taggedCatPayload));
 
     $csharpCirclePayload = trim(runCommand(['dotnet', 'run', $script, '--', 'abstract-union-write']));
     expect(bin2hex(base64_decode($csharpCirclePayload, true)))->toBe(bin2hex($circlePayload));
