@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MemoryPack\Tests\Fixtures;
 
 use DateTimeImmutable;
+use MemoryPack\Mapping\Attributes\Int32Field;
 use MemoryPack\Mapping\Attributes\MemoryPackField;
 use MemoryPack\Mapping\Attributes\MemoryPackable;
 use MemoryPack\Mapping\Type;
@@ -18,7 +19,7 @@ final class Player
     #[MemoryPackField(order: 1, formatter: ReverseStringFormatter::class)]
     public string $name;
 
-    #[MemoryPackField(order: 2, type: Type::LIST, nullable: true, elementType: Type::INT32)]
+    #[MemoryPackField(order: 2, type: Type::LIST, nullable: true, element: new Int32Field())]
     public array|null $scores;
 
     #[MemoryPackField(order: 3, type: Type::DATETIME, nullable: true, format: 'Y-m-d')]

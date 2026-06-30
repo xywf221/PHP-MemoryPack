@@ -146,8 +146,7 @@ final class SchemaFactory
         return $this->nestedDefinition(
             $property,
             'element',
-            $attribute?->elementType,
-            $attribute?->elementClass,
+            $attribute?->element,
         );
     }
 
@@ -161,32 +160,42 @@ final class SchemaFactory
         return $this->nestedDefinition(
             $property,
             'key',
-            $attribute?->keyType,
-            $attribute?->keyClass,
+            $attribute?->key,
         );
     }
 
     private function nestedDefinition(
         ReflectionProperty $property,
         string $kind,
-        string|null $type,
-        string|null $className,
+        MemoryPackField|null $definition,
     ): FieldDefinition {
-        $resolvedType = $className !== null ? Type::OBJECT : $type;
-        if ($resolvedType === null) {
-            throw new \InvalidArgumentException(
-                ucfirst($kind) . " property {$property->getName()} needs MemoryPackField {$kind}Type or {$kind}Class.",
-            );
+        if ($definition !== null) {
+            return $this->fieldDefinitionFromAttribute($property->getName() . ucfirst($kind), $definition);
         }
 
+        throw new \InvalidArgumentException(
+            ucfirst($kind) . " property {$property->getName()} needs MemoryPackField {$kind}.",
+        );
+    }
+
+    private function fieldDefinitionFromAttribute(string $name, MemoryPackField $attribute): FieldDefinition
+    {
+        $type = $attribute->class !== null ? Type::OBJECT : $attribute->type;
+        if ($type === null) {
+            throw new \InvalidArgumentException(
+                "Nested MemoryPackField {$name} needs type or class.",
+            );
+        }
+        $className = $type === Type::OBJECT ? $attribute->class : null;
+
         return new FieldDefinition(
-            $property->getName() . ucfirst($kind),
-            $resolvedType,
-            false,
-            null,
-            null,
-            null,
-            null,
+            $name,
+            $type,
+            $attribute->nullable ?? false,
+            $attribute->element === null ? null : $this->fieldDefinitionFromAttribute($name . 'Element', $attribute->element),
+            $attribute->key === null ? null : $this->fieldDefinitionFromAttribute($name . 'Key', $attribute->key),
+            $attribute->formatter,
+            $attribute->format,
             $className,
             $this->isValueType($className),
         );

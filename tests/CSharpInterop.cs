@@ -84,6 +84,47 @@ if (args[0] == "utf16-read")
     return 0;
 }
 
+if (args[0] == "package-write")
+{
+    var payload = new PackageData
+    {
+        Selections = new[]
+        {
+            new[] { new PackageItem { Id = 1 }, new PackageItem { Id = 2 } },
+            new[] { new PackageItem { Id = 3 } },
+        },
+    };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "package-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<PackageData>(Convert.FromBase64String(args[1]));
+    if (payload is null)
+    {
+        Console.Error.WriteLine("Payload was null.");
+        return 1;
+    }
+
+    Assert(payload.Selections.Length == 2, "selections length");
+    Assert(payload.Selections[0].Length == 2, "first selection length");
+    Assert(payload.Selections[1].Length == 1, "second selection length");
+    Assert(payload.Selections[0][0].Id == 1, "item 1");
+    Assert(payload.Selections[0][1].Id == 2, "item 2");
+    Assert(payload.Selections[1][0].Id == 3, "item 3");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
 Console.Error.WriteLine("Unknown command.");
 return 2;
 
@@ -126,4 +167,16 @@ public partial class Utf16Payload
 {
     [Utf16StringFormatter]
     public string Name { get; set; } = "";
+}
+
+[MemoryPackable]
+public partial class PackageData
+{
+    public PackageItem[][] Selections { get; set; } = Array.Empty<PackageItem[]>();
+}
+
+[MemoryPackable]
+public partial class PackageItem
+{
+    public int Id { get; set; }
 }

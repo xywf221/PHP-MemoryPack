@@ -6,6 +6,7 @@ use MemoryPack\Core\MemoryPackReader;
 use MemoryPack\Core\MemoryPackWriter;
 use MemoryPack\Exception\MemoryPackException;
 use MemoryPack\MemoryPackSerializer;
+use MemoryPack\Mapping\Attributes\MemoryPackField as AttributeField;
 use MemoryPack\Mapping\FieldDefinition;
 use MemoryPack\Mapping\Type;
 use MemoryPack\Tests\Fixtures\A;
@@ -16,6 +17,8 @@ use MemoryPack\Tests\Fixtures\Inventory;
 use MemoryPack\Tests\Fixtures\RandomOption;
 use MemoryPack\Tests\Fixtures\InteropPayload;
 use MemoryPack\Tests\Fixtures\Forecast;
+use MemoryPack\Tests\Fixtures\PackageData;
+use MemoryPack\Tests\Fixtures\PackageItem;
 use MemoryPack\Tests\Fixtures\Player;
 use MemoryPack\Tests\Fixtures\Point;
 use MemoryPack\Tests\Fixtures\Shape;
@@ -65,6 +68,39 @@ it('round trips null objects and nullable strings', function (): void {
     $writer->writeNullString();
 
     expect(MemoryPackSerializer::deserialize($schema, $writer->bytes()))->toBe(['name' => null]);
+});
+
+it('writes nullable primitive nulls as zero values', function (): void {
+    $schema = [
+        FieldDefinition::of('active', Type::BOOL, nullable: true),
+        FieldDefinition::of('count', Type::INT32, nullable: true),
+        FieldDefinition::of('ratio', Type::FLOAT64, nullable: true),
+    ];
+
+    $payload = MemoryPackSerializer::serialize($schema, [
+        'active' => null,
+        'count' => null,
+        'ratio' => null,
+    ]);
+
+    expect(bin2hex($payload))->toBe('0300000000000000000000000000');
+    expect(MemoryPackSerializer::deserialize($schema, $payload))->toBe([
+        'active' => false,
+        'count' => 0,
+        'ratio' => 0.0,
+    ]);
+});
+
+it('builds field metadata with MemoryPackField helpers', function (): void {
+    $field = AttributeField::dictOf(
+        AttributeField::stringOf(),
+        AttributeField::listOf(AttributeField::int32Of()),
+    );
+
+    expect($field->type)->toBe(Type::DICT)
+        ->and($field->key?->type)->toBe(Type::STRING)
+        ->and($field->element?->type)->toBe(Type::LIST)
+        ->and($field->element?->element?->type)->toBe(Type::INT32);
 });
 
 it('rejects truncated payloads', function (): void {
@@ -202,6 +238,54 @@ it('round trips dictionary attributes with value object values', function (): vo
         ->and($result->locations['spawn']->x)->toBe(9)
         ->and($result->locations['spawn']->y)->toBe(4);
 });
+
+it('round trips nested list schemas', function (): void {
+    $schema = [
+        FieldDefinition::listOf(
+            'selections',
+            FieldDefinition::listOf('row', FieldDefinition::of('item', Type::INT32)),
+        ),
+    ];
+
+    $payload = MemoryPackSerializer::serialize($schema, [
+        'selections' => [[1, 2], [3]],
+    ]);
+
+    expect(bin2hex($payload))->toBe('01020000000200000001000000020000000100000003000000');
+    expect(MemoryPackSerializer::deserialize($schema, $payload))->toBe([
+        'selections' => [[1, 2], [3]],
+    ]);
+});
+
+it('round trips nested list attributes with object elements', function (): void {
+    $first = new PackageItem();
+    $first->id = 1;
+    $second = new PackageItem();
+    $second->id = 2;
+    $third = new PackageItem();
+    $third->id = 3;
+
+    $data = new PackageData();
+    $data->selections = [[$first, $second], [$third]];
+
+    $payload = MemoryPackSerializer::serializeObject($data);
+    $result = MemoryPackSerializer::deserializeObject(PackageData::class, $payload);
+
+    expect(bin2hex($payload))->toBe('01020000000200000001010000000102000000010000000103000000');
+    expect($result)->toBeInstanceOf(PackageData::class)
+        ->and($result->selections[0][0])->toBeInstanceOf(PackageItem::class)
+        ->and($result->selections[0][0]->id)->toBe(1)
+        ->and($result->selections[0][1]->id)->toBe(2)
+        ->and($result->selections[1][0]->id)->toBe(3);
+
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
+    $csharpPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'package-write']));
+    expect(bin2hex(base64_decode($csharpPayload, true)))->toBe(bin2hex($payload));
+
+    $phpPayload = base64_encode($payload);
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'package-read', $phpPayload])))->toBe('ok');
+});
+
 it('interoperates with real C# MemoryPack serialization', function (): void {
     $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
 

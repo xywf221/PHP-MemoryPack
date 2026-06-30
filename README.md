@@ -41,6 +41,7 @@ $value = MemoryPackSerializer::deserialize($schema, $payload);
 ```php
 use MemoryPack\Mapping\Attributes\MemoryPackField;
 use MemoryPack\Mapping\Attributes\MemoryPackable;
+use MemoryPack\Mapping\Attributes\Int32Field;
 use MemoryPack\Mapping\Type;
 use MemoryPack\MemoryPackSerializer;
 
@@ -53,13 +54,39 @@ final class Player
     #[MemoryPackField(order: 1)]
     public string $name;
 
-    #[MemoryPackField(order: 2, type: Type::LIST, nullable: true, elementType: Type::INT32)]
+    #[MemoryPackField(order: 2, type: Type::LIST, nullable: true, element: new Int32Field())]
     public array|null $scores;
 }
 
 $payload = MemoryPackSerializer::serializeObject($player);
 $player = MemoryPackSerializer::deserializeObject(Player::class, $payload);
 ```
+
+### Field Metadata Helpers
+
+PHP attributes cannot call static methods, so use the short `new XxxField()` classes inside `#[MemoryPackField(...)]`:
+
+```php
+use MemoryPack\Mapping\Attributes\DictField;
+use MemoryPack\Mapping\Attributes\Int32Field;
+use MemoryPack\Mapping\Attributes\StringField;
+
+#[MemoryPackField(order: 0, type: Type::DICT, key: new StringField(), element: new Int32Field())]
+public array $scores;
+```
+
+For runtime metadata construction, use `MemoryPackField::xxOf()` helpers:
+
+```php
+use MemoryPack\Mapping\Attributes\MemoryPackField;
+
+$field = MemoryPackField::dictOf(
+    MemoryPackField::stringOf(),
+    MemoryPackField::int32Of(),
+);
+```
+
+Built-in helpers include `boolOf`, `uint8Of`, `int16Of`, `uint16Of`, `int32Of`, `uint32Of`, `int64Of`, `float32Of`, `float64Of`, `stringOf`, `dateTimeOf`, `jsonOf`, `objectOf`, `listOf`, and `dictOf`.
 
 ## Nested Objects
 
@@ -84,8 +111,33 @@ Nested mappings recurse, so `A -> B -> C` is serialized in field order.
 For `list<object>`, provide the element class:
 
 ```php
-#[MemoryPackField(order: 0, type: Type::LIST, elementClass: Point::class)]
+#[MemoryPackField(order: 0, type: Type::LIST, element: new ObjectField(Point::class))]
 public array $points;
+```
+
+For nested lists, use the recursive `element` form. This mirrors nested `FieldDefinition::listOf()` and can express more than two dimensions.
+
+```php
+use MemoryPack\Mapping\Attributes\ListField;
+use MemoryPack\Mapping\Attributes\ObjectField;
+
+#[MemoryPackField(
+    order: 0,
+    type: Type::LIST,
+    element: new ListField(new ObjectField(PackageItem::class)),
+)]
+public array $selections; // PackageItem[][]
+```
+
+Manual schemas can express the same shape by nesting `FieldDefinition::listOf()`:
+
+```php
+$schema = [
+    FieldDefinition::listOf(
+        'selections',
+        FieldDefinition::listOf('row', FieldDefinition::of('item', Type::INT32)),
+    ),
+];
 ```
 
 ## C# Struct / Value Type
@@ -109,7 +161,7 @@ final class Shape
     #[MemoryPackField(order: 0)]
     public Point $origin;
 
-    #[MemoryPackField(order: 1, type: Type::LIST, elementClass: Point::class)]
+    #[MemoryPackField(order: 1, type: Type::LIST, element: new ObjectField(Point::class))]
     public array $points;
 }
 ```
@@ -137,10 +189,18 @@ $schema = [
 Attribute mapping:
 
 ```php
-#[MemoryPackField(order: 0, type: Type::DICT, keyType: Type::STRING, elementType: Type::INT32)]
+use MemoryPack\Mapping\Attributes\Int32Field;
+use MemoryPack\Mapping\Attributes\StringField;
+
+#[MemoryPackField(
+    order: 0,
+    type: Type::DICT,
+    key: new StringField(),
+    element: new Int32Field(),
+)]
 public array $scores;
 ```
-For dictionary object keys or values, provide `keyClass` or `elementClass`. Whether that class is encoded as a C# struct comes from its own `#[MemoryPackable(valueType: true)]` declaration.
+For dictionary object keys or values, use `new ObjectField(SomeClass::class)`. Whether that class is encoded as a C# struct comes from its own `#[MemoryPackable(valueType: true)]` declaration.
 
 ## String Encoding
 
@@ -258,6 +318,44 @@ final class EquipmentItem implements MemoryPackableInterface
 ```
 
 To supply only a `Schema` and reuse the default wire format, implement `MemoryPackSchemaInterface` with `memoryPackSchema(): Schema` instead.
+
+## Editing Payloads / Schema Migration
+
+Appending a `nullable` field at the end of an object is backward compatible: the object header records a member count, so a reader simply leaves trailing new fields null. Keep wire `order` append-only and never change an existing field's order or type, and old data keeps reading.
+
+When that is not enough — changing a field's type, removing a middle field, inserting a field ahead of an existing one — use `PayloadEditor`. It decodes a payload into a mutable tree using the schema the bytes were written with, lets you edit the structure, and re-encodes from the edited tree. Re-encoding never re-derives schema from a class, so structural edits survive.
+
+```php
+use MemoryPack\Editor\PayloadEditor;
+use MemoryPack\Mapping\FieldDefinition;
+use MemoryPack\Mapping\Type;
+
+$editor = new PayloadEditor($payload, $oldSchema);
+
+// read
+$editor->getValue('b.c');                 // dotted path descends object fields
+$editor->has('b.c');
+
+// change values
+$editor->setValue('b.c', 5);
+$editor->replace('b.c', fn ($old) => $old + 1);
+
+// change structure
+$editor->addProperty('b', FieldDefinition::of('d', Type::INT32), value: 0, order: 0); // insert ahead of b's fields
+$editor->removeProperty('b.c');
+$editor->setOrder('b.c', 0);              // move to a new 0-based wire position
+
+$newBytes = $editor->toBytes();           // re-encode from the edited tree
+$tree = $editor->toArray();               // whole tree as nested arrays
+```
+
+Paths are dot-separated and descend through object fields; pass `''` for the root object. The `order` argument is the 0-based position in the object's field list, which is exactly the wire order. To change a field's type, remove it and re-add it at the same `order` with a new `FieldDefinition`.
+
+Notes:
+
+- `list` and `dict` fields are edited as whole values (`getValue` returns the array, `setValue` writes it back); the path does not descend into collection elements.
+- A field whose class implements `MemoryPackableInterface` is opaque: its decoded instance is kept and re-serialized through the same class. You can replace it wholesale but not descend into it.
+- Decode the payload with the schema it was actually written with. For a versioned store, prefix each payload with a version byte and pick the matching old schema before editing.
 
 ## Supported Types
 

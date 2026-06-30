@@ -19,7 +19,11 @@ final class PrimitiveFormatter implements MemoryPackFormatterInterface
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
         if ($value === null) {
-            throw new \InvalidArgumentException("Field {$field->name} cannot be null.");
+            if (!$field->nullable) {
+                throw new \InvalidArgumentException("Field {$field->name} cannot be null.");
+            }
+
+            $value = 0;
         }
 
         match ($this->type) {
