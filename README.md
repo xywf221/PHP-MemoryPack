@@ -198,12 +198,13 @@ final class Zoo
 }
 ```
 
-Fields, lists, and dictionaries typed as the union root dispatch automatically. For a top-level union value, serialize as the declared root type so the serializer knows which union table to use:
+Fields, lists, and dictionaries typed as the union root dispatch automatically. For a top-level union value, serialize with the root schema so the serializer knows which union table to use:
 
 ```php
 use MemoryPack\MemoryPackSerializer;
 
-$payload = MemoryPackSerializer::serializeObjectAs(Animal::class, $cat);
+$schema = MemoryPackSerializer::schemaFactory()->create(Animal::class);
+$payload = MemoryPackSerializer::serialize($schema, $cat);
 $animal = MemoryPackSerializer::deserializeObject(Animal::class, $payload);
 ```
 
@@ -222,6 +223,8 @@ $payload = MemoryPackSerializer::serializeObject($cat); // tag + Cat payload
 ```
 
 `MemoryPackUnionTag` does not add automatic deserialization. To read union payloads in PHP, use a root with `#[MemoryPackUnion(...)]`; otherwise `deserializeObject(Cat::class, $payload)` will treat the tag as part of the object and fail or decode incorrectly.
+
+If a class with `#[MemoryPackUnionTag]` is also written through a `#[MemoryPackUnion]` root, both mechanisms write what they are told to write. Avoid mixing them unless you intentionally want that wire shape.
 
 ## Arrays, Lists, and Dictionaries
 

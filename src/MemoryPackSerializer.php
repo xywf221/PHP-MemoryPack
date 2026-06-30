@@ -98,43 +98,10 @@ final class MemoryPackSerializer
         }
 
         $schema = self::schemaFactory()->create($value::class);
-        if ($schema->unionTag === null) {
-            if ($value instanceof MemoryPackableInterface) {
-                $writer = new MemoryPackWriter();
-                $value::memoryPackSerialize($writer, $value);
-                return $writer->bytes();
-            }
-
-            return self::serialize($schema, $value);
-        }
-
         $writer = new MemoryPackWriter();
-        self::writeUnionTag($writer, $schema->unionTag);
-        if ($value instanceof MemoryPackableInterface) {
-            $value::memoryPackSerialize($writer, $value);
-        } else {
-            self::writeObject($writer, $schema, $value, !$schema->valueType);
-        }
+        self::writeTaggedObjectPayload($writer, $schema, $value, !$schema->valueType);
 
         return $writer->bytes();
-    }
-
-    /**
-     * Serialize an object as a declared root type. Use this for top-level union
-     * roots, where the concrete object alone does not identify the intended
-     * interface or abstract base.
-     *
-     * @param class-string $className
-     */
-    public static function serializeObjectAs(string $className, object|null $value): string
-    {
-        if (is_subclass_of($className, MemoryPackableInterface::class)) {
-            $writer = new MemoryPackWriter();
-            $className::memoryPackSerialize($writer, $value);
-            return $writer->bytes();
-        }
-
-        return self::serialize(self::schemaFactory()->create($className), $value);
     }
 
     /**
@@ -296,12 +263,7 @@ final class MemoryPackSerializer
             self::writeUnionObject($writer, $schema, $value);
             return;
         }
-        if (is_subclass_of($field->className, MemoryPackableInterface::class)) {
-            $field->className::memoryPackSerialize($writer, $value);
-            return;
-        }
-
-        self::writeObject($writer, $schema, $value, !$field->valueType && !$schema->valueType);
+        self::writeTaggedObjectPayload($writer, $schema, $value, !$field->valueType && !$schema->valueType);
     }
 
     private static function readNestedObject(MemoryPackReader $reader, FieldDefinition $field): object|array|null
@@ -410,6 +372,19 @@ final class MemoryPackSerializer
 
         $valueClass = $value::class;
         throw new \InvalidArgumentException("Union {$schema->className} does not define {$valueClass}.");
+    }
+
+    private static function writeTaggedObjectPayload(MemoryPackWriter $writer, Schema $schema, object $value, bool $writeHeader): void
+    {
+        if ($schema->unionTag !== null) {
+            self::writeUnionTag($writer, $schema->unionTag);
+        }
+        if ($value instanceof MemoryPackableInterface) {
+            $value::memoryPackSerialize($writer, $value);
+            return;
+        }
+
+        self::writeObject($writer, $schema, $value, $writeHeader);
     }
 
     private static function formatterFor(FieldDefinition $field): MemoryPackFormatterInterface

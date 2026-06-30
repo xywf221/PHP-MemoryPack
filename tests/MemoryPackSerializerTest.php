@@ -23,6 +23,7 @@ use MemoryPack\Tests\Fixtures\Player;
 use MemoryPack\Tests\Fixtures\Point;
 use MemoryPack\Tests\Fixtures\PointGrid;
 use MemoryPack\Tests\Fixtures\Shape;
+use MemoryPack\Tests\Fixtures\TaggedUnionCat;
 use MemoryPack\Tests\Fixtures\Temperature;
 use MemoryPack\Tests\Fixtures\UnionAnimal;
 use MemoryPack\Tests\Fixtures\UnionCat;
@@ -340,17 +341,18 @@ it('round trips MemoryPackUnion interfaces and abstract roots with csharp', func
     $dog = new UnionDog();
     $dog->name = 'pochi';
 
-    $catPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, $cat);
-    $dogPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, $dog);
-    $nullPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, null);
-    $taggedCatPayload = MemoryPackSerializer::serializeObject($cat);
-    $taggedDogPayload = MemoryPackSerializer::serializeObject($dog);
+    $unionSchema = MemoryPackSerializer::schemaFactory()->create(UnionAnimal::class);
+    $catPayload = MemoryPackSerializer::serialize($unionSchema, $cat);
+    $dogPayload = MemoryPackSerializer::serialize($unionSchema, $dog);
+    $nullPayload = MemoryPackSerializer::serialize($unionSchema, null);
+    $taggedCat = new TaggedUnionCat();
+    $taggedCat->lives = 9;
+    $taggedCatPayload = MemoryPackSerializer::serializeObject($taggedCat);
 
     expect(bin2hex($catPayload))->toBe('000109000000')
         ->and(bin2hex($dogPayload))->toBe('fafa0001faffffff00000000706f636869')
         ->and(bin2hex($nullPayload))->toBe('ff')
-        ->and(bin2hex($taggedCatPayload))->toBe(bin2hex($catPayload))
-        ->and(bin2hex($taggedDogPayload))->toBe(bin2hex($dogPayload));
+        ->and(bin2hex($taggedCatPayload))->toBe(bin2hex($catPayload));
 
     expect(MemoryPackSerializer::deserializeObject(UnionAnimal::class, $catPayload))
         ->toBeInstanceOf(UnionCat::class)
@@ -362,7 +364,7 @@ it('round trips MemoryPackUnion interfaces and abstract roots with csharp', func
 
     $circle = new UnionCircle();
     $circle->radius = 8;
-    $circlePayload = MemoryPackSerializer::serializeObjectAs(UnionShape::class, $circle);
+    $circlePayload = MemoryPackSerializer::serialize(MemoryPackSerializer::schemaFactory()->create(UnionShape::class), $circle);
     expect(bin2hex($circlePayload))->toBe('010108000000');
     expect(MemoryPackSerializer::deserializeObject(UnionShape::class, $circlePayload))
         ->toBeInstanceOf(UnionCircle::class)
