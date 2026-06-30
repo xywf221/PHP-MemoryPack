@@ -77,7 +77,6 @@ final class SchemaFactory
             $this->elementDefinition($property, $attribute),
             $this->keyDefinition($property, $attribute),
             $attribute?->formatter ?? $formatterAttribute?->formatterClass,
-            $attribute?->format,
             $className,
             $this->isValueType($className),
             $property->getName(),
@@ -232,7 +231,6 @@ final class SchemaFactory
             $attribute->element === null ? null : $this->fieldDefinitionFromAttribute($name . 'Element', $attribute->element),
             $attribute->key === null ? null : $this->fieldDefinitionFromAttribute($name . 'Key', $attribute->key),
             $attribute->formatter,
-            $attribute->format,
             $className,
             $this->isValueType($className),
         );

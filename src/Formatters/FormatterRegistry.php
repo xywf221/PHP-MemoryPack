@@ -29,8 +29,6 @@ final class FormatterRegistry
         $this->register(Type::STRING, new StringFormatter());
         $this->register(Type::LIST, new ListFormatter());
         $this->register(Type::DICT, new DictionaryFormatter());
-        $this->register(Type::DATETIME, new DateTimeFormatter());
-        $this->register(Type::JSON, new JsonFormatter());
     }
 
     public function register(string $type, MemoryPackFormatterInterface $formatter): void
@@ -46,6 +44,10 @@ final class FormatterRegistry
     public function resolve(FieldDefinition $field): MemoryPackFormatterInterface
     {
         if ($field->formatterClass !== null) {
+            if ($field->formatterClass instanceof MemoryPackFormatterInterface) {
+                return $field->formatterClass;
+            }
+
             $formatter = new $field->formatterClass();
             if (!$formatter instanceof MemoryPackFormatterInterface) {
                 throw new \InvalidArgumentException("Formatter {$field->formatterClass} must implement MemoryPackFormatterInterface.");

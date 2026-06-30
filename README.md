@@ -88,7 +88,7 @@ $field = MemoryPackField::dictOf(
 );
 ```
 
-Built-in helpers include `boolOf`, `int8Of`, `uint8Of`, `int16Of`, `uint16Of`, `int32Of`, `uint32Of`, `int64Of`, `float32Of`, `float64Of`, `stringOf`, `dateTimeOf`, `jsonOf`, `objectOf`, `listOf`, and `dictOf`.
+Built-in helpers include `boolOf`, `int8Of`, `uint8Of`, `int16Of`, `uint16Of`, `int32Of`, `uint32Of`, `int64Of`, `float32Of`, `float64Of`, `stringOf`, `dateTimeOf`, `objectOf`, `listOf`, and `dictOf`.
 
 ## Nested Objects
 
@@ -255,6 +255,8 @@ Use `Utf16StringFormatter` only when a field is explicitly marked for UTF-16 int
 
 ## Custom Formatter
 
+`formatter:` accepts either a formatter class name or a formatter instance. Use a class name for stateless formatters; use an instance when the formatter needs configuration.
+
 ```php
 use MemoryPack\Core\MemoryPackReader;
 use MemoryPack\Core\MemoryPackWriter;
@@ -287,6 +289,19 @@ $player->name = 'abc';
 
 $payload = MemoryPackSerializer::serializeObject($player);
 $player = MemoryPackSerializer::deserializeObject(Player::class, $payload);
+```
+
+### DateTime Formatter
+
+DateTime is not a built-in wire type. Store it as a string field with `DateTimeFormatter`; the formatter owns the PHP date format.
+
+```php
+use MemoryPack\Formatters\DateTimeFormatter;
+use MemoryPack\Mapping\Attributes\MemoryPackField;
+use MemoryPack\Mapping\Type;
+
+#[MemoryPackField(order: 0, type: Type::STRING, nullable: true, formatter: new DateTimeFormatter('Y-m-d'))]
+public DateTimeImmutable|null $createdAt;
 ```
 
 ## Self-Serializing Types
@@ -411,8 +426,6 @@ Notes:
 - `string`
 - `list`
 - `dict`
-- `datetime`
-- `json`
 - `object`
 
 Current boundary: this is not a full C# source-generator port. It does not yet implement circular reference tracking, version-tolerant object headers, unmanaged array fast paths, GUIDs, or the full MemoryPack formatter ecosystem.

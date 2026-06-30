@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MemoryPack\Mapping\Attributes;
 
 use Attribute;
+use MemoryPack\Formatters\DateTimeFormatter;
+use MemoryPack\Formatters\MemoryPackFormatterInterface;
 use MemoryPack\Mapping\Type;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
@@ -15,8 +17,7 @@ class MemoryPackField
         public private(set) string|null $type = null,
         public private(set) bool|null $nullable = null,
         public private(set) string|null $class = null,
-        public private(set) string|null $format = null,
-        public private(set) string|null $formatter = null,
+        public private(set) string|MemoryPackFormatterInterface|null $formatter = null,
         public private(set) self|null $element = null,
         public private(set) self|null $key = null,
     ) {
@@ -84,12 +85,7 @@ class MemoryPackField
 
     public static function dateTimeOf(bool|null $nullable = null, string|null $format = null): self
     {
-        return new self(type: Type::DATETIME, nullable: $nullable, format: $format);
-    }
-
-    public static function jsonOf(bool|null $nullable = null): self
-    {
-        return self::of(Type::JSON, $nullable);
+        return new self(type: Type::STRING, nullable: $nullable, formatter: new DateTimeFormatter($format));
     }
 
     public static function objectOf(string $class, bool|null $nullable = null): self

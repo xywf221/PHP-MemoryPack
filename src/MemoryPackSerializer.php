@@ -31,8 +31,6 @@ final class MemoryPackSerializer
     public const string STRING = Type::STRING;
     public const string LIST = Type::LIST;
     public const string DICT = Type::DICT;
-    public const string DATETIME = Type::DATETIME;
-    public const string JSON = Type::JSON;
     public const string OBJECT = Type::OBJECT;
 
     private static FormatterRegistry|null $registry = null;
@@ -184,7 +182,7 @@ final class MemoryPackSerializer
             throw new \InvalidArgumentException('writePackable needs a value or an explicit class name.');
         }
 
-        self::writeNestedObject($writer, new FieldDefinition('packable', Type::OBJECT, $nullable, null, null, null, null, $className), $value);
+        self::writeNestedObject($writer, new FieldDefinition('packable', Type::OBJECT, $nullable, null, null, null, $className), $value);
     }
 
     /**
@@ -197,7 +195,7 @@ final class MemoryPackSerializer
      */
     public static function readPackable(MemoryPackReader $reader, string $className, bool $nullable = true): object|null
     {
-        $value = self::readNestedObject($reader, new FieldDefinition('packable', Type::OBJECT, $nullable, null, null, null, null, $className));
+        $value = self::readNestedObject($reader, new FieldDefinition('packable', Type::OBJECT, $nullable, null, null, null, $className));
 
         return $value instanceof $className ? $value : null;
     }
@@ -331,7 +329,7 @@ final class MemoryPackSerializer
         self::writeUnionTag($writer, $tag);
         self::writeNestedObject(
             $writer,
-            new FieldDefinition('unionValue', Type::OBJECT, false, null, null, null, null, $className),
+            new FieldDefinition('unionValue', Type::OBJECT, false, null, null, null, $className),
             $value,
         );
     }
@@ -347,7 +345,7 @@ final class MemoryPackSerializer
 
         return self::readNestedObject(
             $reader,
-            new FieldDefinition('unionValue', Type::OBJECT, false, null, null, null, null, $className),
+            new FieldDefinition('unionValue', Type::OBJECT, false, null, null, null, $className),
         );
     }
 

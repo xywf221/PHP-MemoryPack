@@ -19,8 +19,6 @@ final class Type
     public const string STRING = 'string';
     public const string LIST = 'list';
     public const string DICT = 'dict';
-    public const string DATETIME = 'datetime';
-    public const string JSON = 'json';
     public const string OBJECT = 'object';
 
     private function __construct()

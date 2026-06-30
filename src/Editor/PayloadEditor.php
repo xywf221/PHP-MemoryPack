@@ -26,7 +26,7 @@ use MemoryPack\MemoryPackSerializer;
  * is not enough: changing a field's type, removing a middle field, or inserting a
  * field ahead of an existing one.
  *
- * Leaves (scalars, string, datetime, json, list, dict, custom formatters) are held
+ * Leaves (scalars, string, list, dict, custom formatters) are held
  * as decoded PHP values. Object fields become nested editable nodes. A class that
  * implements MemoryPackableInterface is opaque: its raw bytes are captured and can
  * be replaced wholesale but not descended into.
@@ -141,7 +141,7 @@ final class PayloadEditor
      * The shape may be a Schema, a class name, or a list whose entries are each a
      * FieldDefinition, a plain field name (string) reusing the field's current
      * definition, or an array spec ['name' => ..., 'type' => ..., 'nullable' => ...,
-     * 'formatter' => ..., 'class' => ..., 'format' => ..., 'element' => ...,
+     * 'formatter' => ..., 'class' => ..., 'element' => ...,
      * 'key' => ..., 'value' => ...]. The optional 'value' seeds a new field.
      *
      * @param list<FieldDefinition|array<string, mixed>|string>|class-string|Schema $shape
@@ -225,7 +225,6 @@ final class PayloadEditor
             isset($spec['element']) ? $this->nestedFieldSpec($spec['element']) : null,
             isset($spec['key']) ? $this->nestedFieldSpec($spec['key']) : null,
             $spec['formatter'] ?? null,
-            $spec['format'] ?? null,
             $spec['class'] ?? null,
             $spec['valueType'] ?? false,
             $spec['propertyName'] ?? $name,

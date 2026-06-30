@@ -12,6 +12,10 @@ use MemoryPack\Mapping\FieldDefinition;
 
 final class DateTimeFormatter implements MemoryPackFormatterInterface
 {
+    public function __construct(private readonly string|null $format = null)
+    {
+    }
+
     #[\Override]
     public function serialize(MemoryPackWriter $writer, mixed $value, FieldDefinition $field, FormatterRegistry $registry): void
     {
@@ -22,7 +26,7 @@ final class DateTimeFormatter implements MemoryPackFormatterInterface
             throw new \InvalidArgumentException("Field {$field->name} must be a DateTimeInterface.");
         }
 
-        $writer->writeString($value?->format($field->format ?? DateTimeInterface::ATOM));
+        $writer->writeString($value?->format($this->format ?? DateTimeInterface::ATOM));
     }
 
     #[\Override]
