@@ -86,7 +86,7 @@ $field = MemoryPackField::dictOf(
 );
 ```
 
-Built-in helpers include `boolOf`, `uint8Of`, `int16Of`, `uint16Of`, `int32Of`, `uint32Of`, `int64Of`, `float32Of`, `float64Of`, `stringOf`, `dateTimeOf`, `jsonOf`, `objectOf`, `listOf`, and `dictOf`.
+Built-in helpers include `boolOf`, `int8Of`, `uint8Of`, `int16Of`, `uint16Of`, `int32Of`, `uint32Of`, `int64Of`, `float32Of`, `float64Of`, `stringOf`, `dateTimeOf`, `jsonOf`, `objectOf`, `listOf`, and `dictOf`.
 
 ## Nested Objects
 
@@ -360,6 +360,7 @@ Notes:
 ## Supported Types
 
 - `bool`
+- `int8`
 - `uint8`
 - `int16`
 - `uint16`

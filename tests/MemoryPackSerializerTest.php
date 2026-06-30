@@ -73,34 +73,44 @@ it('round trips null objects and nullable strings', function (): void {
 it('writes nullable primitive nulls as zero values', function (): void {
     $schema = [
         FieldDefinition::of('active', Type::BOOL, nullable: true),
+        FieldDefinition::of('small', Type::INT8, nullable: true),
         FieldDefinition::of('count', Type::INT32, nullable: true),
         FieldDefinition::of('ratio', Type::FLOAT64, nullable: true),
     ];
 
     $payload = MemoryPackSerializer::serialize($schema, [
         'active' => null,
+        'small' => null,
         'count' => null,
         'ratio' => null,
     ]);
 
-    expect(bin2hex($payload))->toBe('0300000000000000000000000000');
+    expect(bin2hex($payload))->toBe('040000000000000000000000000000');
     expect(MemoryPackSerializer::deserialize($schema, $payload))->toBe([
         'active' => false,
+        'small' => 0,
         'count' => 0,
         'ratio' => 0.0,
     ]);
 });
 
+it('round trips int8 primitive values', function (): void {
+    $schema = [FieldDefinition::of('value', Type::INT8)];
+
+    expect(bin2hex(MemoryPackSerializer::serialize($schema, ['value' => -1])))->toBe('01ff')
+        ->and(MemoryPackSerializer::deserialize($schema, "\x01\xff"))->toBe(['value' => -1]);
+});
+
 it('builds field metadata with MemoryPackField helpers', function (): void {
     $field = AttributeField::dictOf(
         AttributeField::stringOf(),
-        AttributeField::listOf(AttributeField::int32Of()),
+        AttributeField::listOf(AttributeField::int8Of()),
     );
 
     expect($field->type)->toBe(Type::DICT)
         ->and($field->key?->type)->toBe(Type::STRING)
         ->and($field->element?->type)->toBe(Type::LIST)
-        ->and($field->element?->element?->type)->toBe(Type::INT32);
+        ->and($field->element?->element?->type)->toBe(Type::INT8);
 });
 
 it('rejects truncated payloads', function (): void {

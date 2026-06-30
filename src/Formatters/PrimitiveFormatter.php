@@ -28,6 +28,7 @@ final class PrimitiveFormatter implements MemoryPackFormatterInterface
 
         match ($this->type) {
             Type::BOOL => $writer->writeBool((bool) $value),
+            Type::INT8 => $writer->writeInt8((int) $value),
             Type::UINT8 => $writer->writeUInt8((int) $value),
             Type::INT16 => $writer->writeInt16((int) $value),
             Type::UINT16 => $writer->writeUInt16((int) $value),
@@ -45,6 +46,7 @@ final class PrimitiveFormatter implements MemoryPackFormatterInterface
     {
         return match ($this->type) {
             Type::BOOL => $reader->readBool(),
+            Type::INT8 => $reader->readInt8(),
             Type::UINT8 => $reader->readUInt8(),
             Type::INT16 => $reader->readInt16(),
             Type::UINT16 => $reader->readUInt16(),

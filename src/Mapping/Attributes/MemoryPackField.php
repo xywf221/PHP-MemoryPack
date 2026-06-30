@@ -32,6 +32,11 @@ class MemoryPackField
         return self::of(Type::BOOL, $nullable);
     }
 
+    public static function int8Of(bool|null $nullable = null): self
+    {
+        return self::of(Type::INT8, $nullable);
+    }
+
     public static function uint8Of(bool|null $nullable = null): self
     {
         return self::of(Type::UINT8, $nullable);

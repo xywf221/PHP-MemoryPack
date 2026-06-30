@@ -7,6 +7,7 @@ namespace MemoryPack\Mapping;
 final class Type
 {
     public const string BOOL = 'bool';
+    public const string INT8 = 'int8';
     public const string UINT8 = 'uint8';
     public const string INT16 = 'int16';
     public const string UINT16 = 'uint16';

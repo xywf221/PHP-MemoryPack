@@ -68,6 +68,15 @@ final class MemoryPackWriter
         $this->writeUInt8($value ? 1 : 0);
     }
 
+    public function writeInt8(int $value): void
+    {
+        if ($value < -0x80 || $value > 0x7f) {
+            throw new \InvalidArgumentException('Int8 value is out of range.');
+        }
+
+        $this->buffer .= pack('C', $value & 0xff);
+    }
+
     public function writeUInt8(int $value): void
     {
         if ($value < 0 || $value > 0xff) {

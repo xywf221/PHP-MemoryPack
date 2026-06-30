@@ -19,6 +19,7 @@ use ReflectionClass;
 final class MemoryPackSerializer
 {
     public const string BOOL = Type::BOOL;
+    public const string INT8 = Type::INT8;
     public const string UINT8 = Type::UINT8;
     public const string INT16 = Type::INT16;
     public const string UINT16 = Type::UINT16;

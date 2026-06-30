@@ -17,6 +17,7 @@ final class FormatterRegistry
     public function __construct()
     {
         $this->register(Type::BOOL, new PrimitiveFormatter(Type::BOOL));
+        $this->register(Type::INT8, new PrimitiveFormatter(Type::INT8));
         $this->register(Type::UINT8, new PrimitiveFormatter(Type::UINT8));
         $this->register(Type::INT16, new PrimitiveFormatter(Type::INT16));
         $this->register(Type::UINT16, new PrimitiveFormatter(Type::UINT16));

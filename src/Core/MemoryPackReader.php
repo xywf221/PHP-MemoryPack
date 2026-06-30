@@ -54,6 +54,13 @@ final class MemoryPackReader
         return $this->readUInt8() !== 0;
     }
 
+    public function readInt8(): int
+    {
+        $value = unpack('C', $this->readRaw(1))[1];
+
+        return $value >= 0x80 ? $value - 0x100 : $value;
+    }
+
     public function readUInt8(): int
     {
         return unpack('C', $this->readRaw(1))[1];
