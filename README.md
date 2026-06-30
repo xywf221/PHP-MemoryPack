@@ -168,6 +168,14 @@ final class Shape
 }
 ```
 
+`valueType` does not make PHP infer or reproduce CLR struct memory alignment. PHP writes the declared fields in schema order with no implicit padding bytes. This matches compact field-by-field value objects, but it can differ from C# unmanaged struct serialization when the struct relies on default runtime layout. For example, a C# struct containing `byte` followed by `int` may include alignment padding unless its layout is controlled.
+
+For C# interop, prefer one of these approaches:
+
+- Use C# `[StructLayout(LayoutKind.Sequential, Pack = 1)]` when the PHP schema should be tightly packed.
+- Keep unmanaged structs ordered so their C# memory layout has no padding ambiguity.
+- If you must match a padded C# layout, use a custom formatter and write/read the padding explicitly.
+
 ## MemoryPackUnion
 
 Union roots are interfaces or abstract classes marked with repeatable `#[MemoryPackUnion(tag, ClassName::class)]` attributes. Tags `0..249` use the one-byte form; tags `250..65535` use the extended MemoryPack form. `null` is encoded as the union null tag.
