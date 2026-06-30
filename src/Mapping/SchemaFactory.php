@@ -41,7 +41,7 @@ final class SchemaFactory
             }
 
             $fieldAttribute = $this->propertyAttribute($property, MemoryPackField::class);
-            if (!$property->isPublic() && $fieldAttribute === null) {
+            if ($fieldAttribute === null) {
                 continue;
             }
 
@@ -67,7 +67,7 @@ final class SchemaFactory
         return new FieldDefinition(
             $property->getName(),
             $type,
-            $attribute?->nullable ?? $this->allowsNull($property),
+            $attribute?->nullable ?? false,
             $this->elementDefinition($property, $attribute),
             $this->keyDefinition($property, $attribute),
             $attribute?->formatter ?? $formatterAttribute?->formatterClass,
@@ -129,11 +129,6 @@ final class SchemaFactory
             'array' => Type::LIST,
             default => class_exists($name) ? Type::OBJECT : throw new \InvalidArgumentException("Unsupported property type {$name}."),
         };
-    }
-
-    private function allowsNull(ReflectionProperty $property): bool
-    {
-        return $property->getType()?->allowsNull() ?? true;
     }
 
     private function elementDefinition(ReflectionProperty $property, MemoryPackField|null $attribute): FieldDefinition|null

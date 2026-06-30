@@ -21,6 +21,7 @@ use MemoryPack\Tests\Fixtures\PackageData;
 use MemoryPack\Tests\Fixtures\PackageItem;
 use MemoryPack\Tests\Fixtures\Player;
 use MemoryPack\Tests\Fixtures\Point;
+use MemoryPack\Tests\Fixtures\PointGrid;
 use MemoryPack\Tests\Fixtures\Shape;
 use MemoryPack\Tests\Fixtures\Temperature;
 use MemoryPack\Tests\Fixtures\Utf16Payload;
@@ -174,15 +175,33 @@ it('round trips nested objects recursively', function (): void {
 });
 
 it('serializes value object mappings without nested object headers like C# structs', function (): void {
+    $point = new Point();
+    $point->x = 1;
+    $point->y = 2;
+
+    $pointPayload = MemoryPackSerializer::serializeObject($point);
+    expect(bin2hex($pointPayload))->toBe('0100000002000000');
+
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
+    $csharpPointPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'point-write']));
+    expect(bin2hex(base64_decode($csharpPointPayload, true)))->toBe(bin2hex($pointPayload));
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'point-read', base64_encode($pointPayload)])))->toBe('ok');
+
     $shape = new Shape();
     $shape->origin = new Point();
     $shape->origin->x = 1;
     $shape->origin->y = 2;
-    $shape->points = [];
+    $first = new Point();
+    $first->x = 3;
+    $first->y = 4;
+    $second = new Point();
+    $second->x = 5;
+    $second->y = 6;
+    $shape->points = [$first, $second];
 
     $payload = MemoryPackSerializer::serializeObject($shape);
 
-    expect(bin2hex(substr($payload, 0, 10)))->toBe('02010000000200000000');
+    expect(bin2hex($payload))->toBe('0201000000020000000200000003000000040000000500000006000000');
 
     $result = MemoryPackSerializer::deserializeObject(Shape::class, $payload);
 
@@ -190,7 +209,54 @@ it('serializes value object mappings without nested object headers like C# struc
         ->and($result->origin)->toBeInstanceOf(Point::class)
         ->and($result->origin->x)->toBe(1)
         ->and($result->origin->y)->toBe(2)
-        ->and($result->points)->toBe([]);
+        ->and($result->points[0])->toBeInstanceOf(Point::class)
+        ->and($result->points[0]->x)->toBe(3)
+        ->and($result->points[0]->y)->toBe(4)
+        ->and($result->points[1]->x)->toBe(5)
+        ->and($result->points[1]->y)->toBe(6);
+
+    $csharpPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'shape-write']));
+    expect(bin2hex(base64_decode($csharpPayload, true)))->toBe(bin2hex($payload));
+
+    $phpPayload = base64_encode($payload);
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'shape-read', $phpPayload])))->toBe('ok');
+});
+
+it('round trips nested lists of value object mappings with csharp', function (): void {
+    $first = new Point();
+    $first->x = 1;
+    $first->y = 2;
+    $second = new Point();
+    $second->x = 3;
+    $second->y = 4;
+    $third = new Point();
+    $third->x = 5;
+    $third->y = 6;
+
+    $grid = new PointGrid();
+    $grid->matrix = [[$first, $second], [$third]];
+
+    $payload = MemoryPackSerializer::serializeObject($grid);
+
+    expect(bin2hex($payload))->toBe('01020000000200000001000000020000000300000004000000010000000500000006000000');
+
+    $result = MemoryPackSerializer::deserializeObject(PointGrid::class, $payload);
+
+    expect($result)->toBeInstanceOf(PointGrid::class)
+        ->and($result->matrix[0][0])->toBeInstanceOf(Point::class)
+        ->and($result->matrix[0][0]->x)->toBe(1)
+        ->and($result->matrix[0][0]->y)->toBe(2)
+        ->and($result->matrix[0][1]->x)->toBe(3)
+        ->and($result->matrix[0][1]->y)->toBe(4)
+        ->and($result->matrix[1][0]->x)->toBe(5)
+        ->and($result->matrix[1][0]->y)->toBe(6);
+
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
+    $csharpPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'point-grid-write']));
+    expect(bin2hex(base64_decode($csharpPayload, true)))->toBe(bin2hex($payload));
+
+    $phpPayload = base64_encode($payload);
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'point-grid-read', $phpPayload])))->toBe('ok');
 });
 
 it('builds schemas from attributes and uses custom formatters', function (): void {
@@ -247,6 +313,19 @@ it('round trips dictionary attributes with value object values', function (): vo
         ->and($result->locations['spawn'])->toBeInstanceOf(Point::class)
         ->and($result->locations['spawn']->x)->toBe(9)
         ->and($result->locations['spawn']->y)->toBe(4);
+
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
+    $csharpPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'inventory-write']));
+    $fromCsharp = MemoryPackSerializer::deserializeObject(Inventory::class, base64_decode($csharpPayload, true));
+
+    expect($fromCsharp)->toBeInstanceOf(Inventory::class)
+        ->and($fromCsharp->counts)->toBe(['sword' => 2, 'potion' => 5])
+        ->and($fromCsharp->locations['spawn'])->toBeInstanceOf(Point::class)
+        ->and($fromCsharp->locations['spawn']->x)->toBe(9)
+        ->and($fromCsharp->locations['spawn']->y)->toBe(4);
+
+    $phpPayload = base64_encode($payload);
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'inventory-read', $phpPayload])))->toBe('ok');
 });
 
 it('round trips nested list schemas', function (): void {

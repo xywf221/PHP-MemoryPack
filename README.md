@@ -62,6 +62,8 @@ $payload = MemoryPackSerializer::serializeObject($player);
 $player = MemoryPackSerializer::deserializeObject(Player::class, $payload);
 ```
 
+Attribute mapping is explicit: only properties marked with `#[MemoryPackField]` are added to the schema. Public properties without this attribute are ignored.
+
 ### Field Metadata Helpers
 
 PHP attributes cannot call static methods, so use the short `new XxxField()` classes inside `#[MemoryPackField(...)]`:

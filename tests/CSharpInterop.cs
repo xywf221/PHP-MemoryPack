@@ -125,6 +125,136 @@ if (args[0] == "package-read")
     return 0;
 }
 
+if (args[0] == "point-write")
+{
+    var payload = new Point { X = 1, Y = 2 };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "point-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<Point>(Convert.FromBase64String(args[1]));
+
+    Assert(payload.X == 1 && payload.Y == 2, "point");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
+if (args[0] == "shape-write")
+{
+    var payload = new Shape
+    {
+        Origin = new Point { X = 1, Y = 2 },
+        Points = new[] { new Point { X = 3, Y = 4 }, new Point { X = 5, Y = 6 } },
+    };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "shape-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<Shape>(Convert.FromBase64String(args[1]));
+    if (payload is null)
+    {
+        Console.Error.WriteLine("Payload was null.");
+        return 1;
+    }
+
+    Assert(payload.Origin.X == 1 && payload.Origin.Y == 2, "shape origin");
+    Assert(payload.Points is [{ X: 3, Y: 4 }, { X: 5, Y: 6 }], "shape points");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
+if (args[0] == "point-grid-write")
+{
+    var payload = new PointGrid
+    {
+        Matrix = new[]
+        {
+            new[] { new Point { X = 1, Y = 2 }, new Point { X = 3, Y = 4 } },
+            new[] { new Point { X = 5, Y = 6 } },
+        },
+    };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "point-grid-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<PointGrid>(Convert.FromBase64String(args[1]));
+    if (payload is null)
+    {
+        Console.Error.WriteLine("Payload was null.");
+        return 1;
+    }
+
+    Assert(payload.Matrix.Length == 2, "point grid rows");
+    Assert(payload.Matrix[0] is [{ X: 1, Y: 2 }, { X: 3, Y: 4 }], "point grid row 1");
+    Assert(payload.Matrix[1] is [{ X: 5, Y: 6 }], "point grid row 2");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
+if (args[0] == "inventory-write")
+{
+    var payload = new Inventory
+    {
+        Counts = new Dictionary<string, int> { ["sword"] = 2, ["potion"] = 5 },
+        Locations = new Dictionary<string, Point> { ["spawn"] = new Point { X = 9, Y = 4 } },
+    };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "inventory-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<Inventory>(Convert.FromBase64String(args[1]));
+    if (payload is null)
+    {
+        Console.Error.WriteLine("Payload was null.");
+        return 1;
+    }
+
+    Assert(payload.Counts.Count == 2 && payload.Counts["sword"] == 2 && payload.Counts["potion"] == 5, "inventory counts");
+    Assert(payload.Locations.Count == 1 && payload.Locations["spawn"].X == 9 && payload.Locations["spawn"].Y == 4, "inventory locations");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
 Console.Error.WriteLine("Unknown command.");
 return 2;
 
@@ -160,6 +290,28 @@ public partial struct Point
     public int X { get; set; }
 
     public int Y { get; set; }
+}
+
+[MemoryPackable]
+public partial class Shape
+{
+    public Point Origin { get; set; }
+
+    public Point[] Points { get; set; } = Array.Empty<Point>();
+}
+
+[MemoryPackable]
+public partial class PointGrid
+{
+    public Point[][] Matrix { get; set; } = Array.Empty<Point[]>();
+}
+
+[MemoryPackable]
+public partial class Inventory
+{
+    public Dictionary<string, int> Counts { get; set; } = new();
+
+    public Dictionary<string, Point> Locations { get; set; } = new();
 }
 
 [MemoryPackable]
