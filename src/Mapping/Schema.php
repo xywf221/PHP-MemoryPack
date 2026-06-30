@@ -13,6 +13,12 @@ final class Schema
         public private(set) array $fields,
         public private(set) string|null $className = null,
         public private(set) bool $valueType = false,
+        public private(set) array $unionTags = [],
     ) {
+    }
+
+    public function isUnion(): bool
+    {
+        return $this->unionTags !== [];
     }
 }

@@ -168,6 +168,43 @@ final class Shape
 }
 ```
 
+## MemoryPackUnion
+
+Union roots are interfaces or abstract classes marked with repeatable `#[MemoryPackUnion(tag, ClassName::class)]` attributes. Tags `0..249` use the one-byte form; tags `250..65535` use the extended MemoryPack form. `null` is encoded as the union null tag.
+
+```php
+use MemoryPack\Mapping\Attributes\MemoryPackable;
+use MemoryPack\Mapping\Attributes\MemoryPackField;
+use MemoryPack\Mapping\Attributes\MemoryPackUnion;
+use MemoryPack\Mapping\Attributes\ObjectField;
+use MemoryPack\Mapping\Type;
+
+#[MemoryPackable]
+#[MemoryPackUnion(0, Cat::class)]
+#[MemoryPackUnion(250, Dog::class)]
+interface Animal
+{
+}
+
+#[MemoryPackable]
+final class Zoo
+{
+    #[MemoryPackField(order: 0, nullable: true)]
+    public Animal|null $favorite;
+
+    #[MemoryPackField(order: 1, type: Type::LIST, element: new ObjectField(Animal::class))]
+    public array $animals;
+}
+```
+
+Fields, lists, and dictionaries typed as the union root dispatch automatically. For a top-level union value, serialize as the declared root type so the serializer knows which union table to use:
+
+```php
+use MemoryPack\MemoryPackSerializer;
+
+$payload = MemoryPackSerializer::serializeObjectAs(Animal::class, $cat);
+$animal = MemoryPackSerializer::deserializeObject(Animal::class, $payload);
+```
 
 ## Arrays, Lists, and Dictionaries
 
@@ -378,4 +415,4 @@ Notes:
 - `json`
 - `object`
 
-Current boundary: this is not a full C# source-generator port. It does not yet implement unions, circular reference tracking, version-tolerant object headers, unmanaged array fast paths, dictionaries, GUIDs, or the full MemoryPack formatter ecosystem.
+Current boundary: this is not a full C# source-generator port. It does not yet implement circular reference tracking, version-tolerant object headers, unmanaged array fast paths, GUIDs, or the full MemoryPack formatter ecosystem.

@@ -7,6 +7,7 @@ namespace MemoryPack\Mapping;
 use MemoryPack\Mapping\Attributes\MemoryPackable;
 use MemoryPack\Mapping\Attributes\MemoryPackField;
 use MemoryPack\Mapping\Attributes\MemoryPackFormatter;
+use MemoryPack\Mapping\Attributes\MemoryPackUnion;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionProperty;
@@ -54,7 +55,12 @@ final class SchemaFactory
 
         usort($fields, static fn (array $left, array $right): int => $left['order'] <=> $right['order']);
 
-        return $this->cache[$className] = new Schema(array_column($fields, 'field'), $className, $memoryPackable?->valueType ?? false);
+        return $this->cache[$className] = new Schema(
+            array_column($fields, 'field'),
+            $className,
+            $memoryPackable?->valueType ?? false,
+            $this->unionTags($class),
+        );
     }
 
     private function createField(ReflectionProperty $property, MemoryPackField|null $attribute): FieldDefinition
@@ -103,6 +109,42 @@ final class SchemaFactory
         return $attributes === [] ? null : $attributes[0]->newInstance();
     }
 
+    /**
+     * @param ReflectionClass<object> $class
+     * @return array<int, class-string>
+     */
+    private function unionTags(ReflectionClass $class): array
+    {
+        $tags = [];
+        $classes = [];
+
+        foreach ($class->getAttributes(MemoryPackUnion::class) as $attribute) {
+            $union = $attribute->newInstance();
+            if ($union->tag < 0 || $union->tag > 0xffff) {
+                throw new \InvalidArgumentException("MemoryPackUnion tag {$union->tag} is out of range.");
+            }
+            if (isset($tags[$union->tag])) {
+                throw new \InvalidArgumentException("Duplicate MemoryPackUnion tag {$union->tag}.");
+            }
+            if (isset($classes[$union->class])) {
+                throw new \InvalidArgumentException("Duplicate MemoryPackUnion class {$union->class}.");
+            }
+            if (!class_exists($union->class)) {
+                throw new \InvalidArgumentException("MemoryPackUnion class {$union->class} does not exist.");
+            }
+            if (!is_a($union->class, $class->getName(), true)) {
+                throw new \InvalidArgumentException("MemoryPackUnion class {$union->class} must extend or implement {$class->getName()}.");
+            }
+
+            $tags[$union->tag] = $union->class;
+            $classes[$union->class] = true;
+        }
+
+        ksort($tags);
+
+        return $tags;
+    }
+
     private function declaredType(ReflectionProperty $property, MemoryPackField|null $attribute, string|null $className): string
     {
         if ($attribute?->class !== null || ($attribute?->type === null && $className !== null)) {
@@ -127,7 +169,7 @@ final class SchemaFactory
             'float' => Type::FLOAT64,
             'string' => Type::STRING,
             'array' => Type::LIST,
-            default => class_exists($name) ? Type::OBJECT : throw new \InvalidArgumentException("Unsupported property type {$name}."),
+            default => class_exists($name) || interface_exists($name) ? Type::OBJECT : throw new \InvalidArgumentException("Unsupported property type {$name}."),
         };
     }
 

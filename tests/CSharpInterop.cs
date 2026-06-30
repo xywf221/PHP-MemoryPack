@@ -255,6 +255,68 @@ if (args[0] == "inventory-read")
     return 0;
 }
 
+if (args[0] == "union-write")
+{
+    var payload = new UnionZoo
+    {
+        Favorite = new UnionCat { Lives = 9 },
+        Animals = new IUnionAnimal[]
+        {
+            new UnionCat { Lives = 7 },
+            new UnionDog { Name = "pochi" },
+        },
+    };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "union-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<UnionZoo>(Convert.FromBase64String(args[1]));
+    if (payload is null)
+    {
+        Console.Error.WriteLine("Payload was null.");
+        return 1;
+    }
+
+    Assert(payload.Favorite is UnionCat { Lives: 9 }, "union favorite");
+    Assert(payload.Animals is [UnionCat { Lives: 7 }, UnionDog { Name: "pochi" }], "union animals");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
+if (args[0] == "abstract-union-write")
+{
+    AbstractUnionShape payload = new UnionCircle { Radius = 8 };
+
+    Console.WriteLine(Convert.ToBase64String(MemoryPackSerializer.Serialize(payload)));
+    return 0;
+}
+
+if (args[0] == "abstract-union-read")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing base64 payload.");
+        return 2;
+    }
+
+    var payload = MemoryPackSerializer.Deserialize<AbstractUnionShape>(Convert.FromBase64String(args[1]));
+
+    Assert(payload is UnionCircle { Radius: 8 }, "abstract union circle");
+
+    Console.WriteLine("ok");
+    return 0;
+}
+
 Console.Error.WriteLine("Unknown command.");
 return 2;
 
@@ -312,6 +374,45 @@ public partial class Inventory
     public Dictionary<string, int> Counts { get; set; } = new();
 
     public Dictionary<string, Point> Locations { get; set; } = new();
+}
+
+[MemoryPackable]
+[MemoryPackUnion(0, typeof(UnionCat))]
+[MemoryPackUnion(250, typeof(UnionDog))]
+public partial interface IUnionAnimal
+{
+}
+
+[MemoryPackable]
+public partial class UnionCat : IUnionAnimal
+{
+    public int Lives { get; set; }
+}
+
+[MemoryPackable]
+public partial class UnionDog : IUnionAnimal
+{
+    public string Name { get; set; } = "";
+}
+
+[MemoryPackable]
+public partial class UnionZoo
+{
+    public IUnionAnimal? Favorite { get; set; }
+
+    public IUnionAnimal[] Animals { get; set; } = Array.Empty<IUnionAnimal>();
+}
+
+[MemoryPackable]
+[MemoryPackUnion(1, typeof(UnionCircle))]
+public abstract partial class AbstractUnionShape
+{
+}
+
+[MemoryPackable]
+public partial class UnionCircle : AbstractUnionShape
+{
+    public int Radius { get; set; }
 }
 
 [MemoryPackable]

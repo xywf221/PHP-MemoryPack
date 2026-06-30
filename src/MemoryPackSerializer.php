@@ -61,7 +61,11 @@ final class MemoryPackSerializer
     {
         $schema = self::normalizeSchema($schema);
         $writer = new MemoryPackWriter();
-        self::writeObject($writer, $schema, $value, !$schema->valueType);
+        if ($schema->isUnion()) {
+            self::writeUnionObject($writer, $schema, $value);
+        } else {
+            self::writeObject($writer, $schema, $value, !$schema->valueType);
+        }
 
         return $writer->bytes();
     }
@@ -74,9 +78,14 @@ final class MemoryPackSerializer
     {
         $schema = self::normalizeSchema($schema);
         $reader = new MemoryPackReader($payload);
-        $value = self::readObject($reader, $schema, !$schema->valueType);
+        $value = $schema->isUnion()
+            ? self::readUnionObject($reader, $schema)
+            : self::readObject($reader, $schema, !$schema->valueType);
         if ($reader->remaining() !== 0) {
             throw new MemoryPackException('Payload has trailing bytes.');
+        }
+        if ($schema->isUnion()) {
+            return $value;
         }
 
         return $schema->className === null || $value === null ? $value : self::hydrate($schema->className, $value);
@@ -100,6 +109,24 @@ final class MemoryPackSerializer
     }
 
     /**
+     * Serialize an object as a declared root type. Use this for top-level union
+     * roots, where the concrete object alone does not identify the intended
+     * interface or abstract base.
+     *
+     * @param class-string $className
+     */
+    public static function serializeObjectAs(string $className, object|null $value): string
+    {
+        if (is_subclass_of($className, MemoryPackableInterface::class)) {
+            $writer = new MemoryPackWriter();
+            $className::memoryPackSerialize($writer, $value);
+            return $writer->bytes();
+        }
+
+        return self::serialize(self::schemaFactory()->create($className), $value);
+    }
+
+    /**
      * @template T of object
      * @param class-string<T> $className
      * @return T|null
@@ -116,7 +143,18 @@ final class MemoryPackSerializer
             return $value instanceof $className ? $value : null;
         }
 
-        $value = self::deserialize(self::schemaFactory()->create($className), $payload);
+        $schema = self::schemaFactory()->create($className);
+        if ($schema->isUnion()) {
+            $reader = new MemoryPackReader($payload);
+            $value = self::readUnionObject($reader, $schema);
+            if ($reader->remaining() !== 0) {
+                throw new MemoryPackException('Payload has trailing bytes.');
+            }
+
+            return $value instanceof $className ? $value : null;
+        }
+
+        $value = self::deserialize($schema, $payload);
 
         return $value instanceof $className ? $value : null;
     }
@@ -242,12 +280,16 @@ final class MemoryPackSerializer
         if ($field->className === null) {
             throw new \InvalidArgumentException("Object field {$field->name} needs a class name.");
         }
+        $schema = self::schemaFactory()->create($field->className);
+        if ($schema->isUnion()) {
+            self::writeUnionObject($writer, $schema, $value);
+            return;
+        }
         if (is_subclass_of($field->className, MemoryPackableInterface::class)) {
             $field->className::memoryPackSerialize($writer, $value);
             return;
         }
 
-        $schema = self::schemaFactory()->create($field->className);
         self::writeObject($writer, $schema, $value, !$field->valueType && !$schema->valueType);
     }
 
@@ -256,14 +298,107 @@ final class MemoryPackSerializer
         if ($field->className === null) {
             throw new \InvalidArgumentException("Object field {$field->name} needs a class name.");
         }
+        $schema = self::schemaFactory()->create($field->className);
+        if ($schema->isUnion()) {
+            return self::readUnionObject($reader, $schema);
+        }
         if (is_subclass_of($field->className, MemoryPackableInterface::class)) {
             return $field->className::memoryPackDeserialize($reader);
         }
 
-        $schema = self::schemaFactory()->create($field->className);
         $value = self::readObject($reader, $schema, !$field->valueType && !$schema->valueType);
 
         return $value === null ? null : self::hydrate($field->className, $value);
+    }
+
+    private static function writeUnionObject(MemoryPackWriter $writer, Schema $schema, mixed $value): void
+    {
+        if ($value === null) {
+            $writer->writeUInt8(0xff);
+            return;
+        }
+        if (!is_object($value)) {
+            throw new \InvalidArgumentException("Union {$schema->className} must be an object or null.");
+        }
+
+        $valueClass = $value::class;
+        $className = self::unionClassForValue($schema, $value);
+        $tag = array_search($className, $schema->unionTags, true);
+        if (!is_int($tag)) {
+            throw new \InvalidArgumentException("Union {$schema->className} does not define {$valueClass}.");
+        }
+
+        self::writeUnionTag($writer, $tag);
+        self::writeNestedObject(
+            $writer,
+            new FieldDefinition('unionValue', Type::OBJECT, false, null, null, null, null, $className),
+            $value,
+        );
+    }
+
+    private static function readUnionObject(MemoryPackReader $reader, Schema $schema): object|null
+    {
+        $tag = self::readUnionTag($reader);
+        if ($tag === null) {
+            return null;
+        }
+
+        $className = $schema->unionTags[$tag] ?? throw new MemoryPackException("Unknown MemoryPackUnion tag {$tag}.");
+
+        return self::readNestedObject(
+            $reader,
+            new FieldDefinition('unionValue', Type::OBJECT, false, null, null, null, null, $className),
+        );
+    }
+
+    private static function writeUnionTag(MemoryPackWriter $writer, int $tag): void
+    {
+        if ($tag < 0 || $tag > 0xffff) {
+            throw new \InvalidArgumentException("MemoryPackUnion tag {$tag} is out of range.");
+        }
+        if ($tag < 0xfa) {
+            $writer->writeUInt8($tag);
+            return;
+        }
+
+        $writer->writeUInt8(0xfa);
+        $writer->writeUInt16($tag);
+    }
+
+    private static function readUnionTag(MemoryPackReader $reader): int|null
+    {
+        $tag = $reader->readUInt8();
+        if ($tag === 0xff) {
+            return null;
+        }
+        if ($tag === 0xfa) {
+            return $reader->readUInt16();
+        }
+        if ($tag > 0xfa) {
+            throw new MemoryPackException("Invalid MemoryPackUnion tag prefix {$tag}.");
+        }
+
+        return $tag;
+    }
+
+    /**
+     * @return class-string
+     */
+    private static function unionClassForValue(Schema $schema, object $value): string
+    {
+        foreach ($schema->unionTags as $className) {
+            if ($value::class === $className) {
+                return $className;
+            }
+        }
+        foreach ($schema->unionTags as $className) {
+            if ($value instanceof $className) {
+                return $className;
+            }
+        }
+
+        $valueClass = $value::class;
+        throw new \InvalidArgumentException("Union {$schema->className} does not define {$valueClass}.");
     }
 
     private static function formatterFor(FieldDefinition $field): MemoryPackFormatterInterface

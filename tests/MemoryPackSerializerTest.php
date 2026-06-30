@@ -24,6 +24,12 @@ use MemoryPack\Tests\Fixtures\Point;
 use MemoryPack\Tests\Fixtures\PointGrid;
 use MemoryPack\Tests\Fixtures\Shape;
 use MemoryPack\Tests\Fixtures\Temperature;
+use MemoryPack\Tests\Fixtures\UnionAnimal;
+use MemoryPack\Tests\Fixtures\UnionCat;
+use MemoryPack\Tests\Fixtures\UnionCircle;
+use MemoryPack\Tests\Fixtures\UnionDog;
+use MemoryPack\Tests\Fixtures\UnionShape;
+use MemoryPack\Tests\Fixtures\UnionZoo;
 use MemoryPack\Tests\Fixtures\Utf16Payload;
 use MemoryPack\Formatters\Utf16StringFormatter;
 
@@ -326,6 +332,73 @@ it('round trips dictionary attributes with value object values', function (): vo
 
     $phpPayload = base64_encode($payload);
     expect(trim(runCommand(['dotnet', 'run', $script, '--', 'inventory-read', $phpPayload])))->toBe('ok');
+});
+
+it('round trips MemoryPackUnion interfaces and abstract roots with csharp', function (): void {
+    $cat = new UnionCat();
+    $cat->lives = 9;
+    $dog = new UnionDog();
+    $dog->name = 'pochi';
+
+    $catPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, $cat);
+    $dogPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, $dog);
+    $nullPayload = MemoryPackSerializer::serializeObjectAs(UnionAnimal::class, null);
+
+    expect(bin2hex($catPayload))->toBe('000109000000')
+        ->and(bin2hex($dogPayload))->toBe('fafa0001faffffff00000000706f636869')
+        ->and(bin2hex($nullPayload))->toBe('ff');
+
+    expect(MemoryPackSerializer::deserializeObject(UnionAnimal::class, $catPayload))
+        ->toBeInstanceOf(UnionCat::class)
+        ->lives->toBe(9);
+    expect(MemoryPackSerializer::deserializeObject(UnionAnimal::class, $dogPayload))
+        ->toBeInstanceOf(UnionDog::class)
+        ->name->toBe('pochi');
+    expect(MemoryPackSerializer::deserializeObject(UnionAnimal::class, $nullPayload))->toBeNull();
+
+    $circle = new UnionCircle();
+    $circle->radius = 8;
+    $circlePayload = MemoryPackSerializer::serializeObjectAs(UnionShape::class, $circle);
+    expect(bin2hex($circlePayload))->toBe('010108000000');
+    expect(MemoryPackSerializer::deserializeObject(UnionShape::class, $circlePayload))
+        ->toBeInstanceOf(UnionCircle::class)
+        ->radius->toBe(8);
+
+    $first = new UnionCat();
+    $first->lives = 7;
+    $zoo = new UnionZoo();
+    $zoo->favorite = $cat;
+    $zoo->animals = [$first, $dog];
+
+    $payload = MemoryPackSerializer::serializeObject($zoo);
+    expect(bin2hex($payload))->toBe('02' . '000109000000' . '02000000' . '000107000000' . 'fafa0001faffffff00000000706f636869');
+
+    $result = MemoryPackSerializer::deserializeObject(UnionZoo::class, $payload);
+    expect($result)->toBeInstanceOf(UnionZoo::class)
+        ->and($result->favorite)->toBeInstanceOf(UnionCat::class)
+        ->and($result->favorite->lives)->toBe(9)
+        ->and($result->animals[0])->toBeInstanceOf(UnionCat::class)
+        ->and($result->animals[0]->lives)->toBe(7)
+        ->and($result->animals[1])->toBeInstanceOf(UnionDog::class)
+        ->and($result->animals[1]->name)->toBe('pochi');
+
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'CSharpInterop.cs';
+    $csharpPayload = trim(runCommand(['dotnet', 'run', $script, '--', 'union-write']));
+    $fromCsharp = MemoryPackSerializer::deserializeObject(UnionZoo::class, base64_decode($csharpPayload, true));
+    expect($fromCsharp)->toBeInstanceOf(UnionZoo::class)
+        ->and($fromCsharp->favorite)->toBeInstanceOf(UnionCat::class)
+        ->and($fromCsharp->favorite->lives)->toBe(9)
+        ->and($fromCsharp->animals[0])->toBeInstanceOf(UnionCat::class)
+        ->and($fromCsharp->animals[0]->lives)->toBe(7)
+        ->and($fromCsharp->animals[1])->toBeInstanceOf(UnionDog::class)
+        ->and($fromCsharp->animals[1]->name)->toBe('pochi');
+
+    $phpPayload = base64_encode($payload);
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'union-read', $phpPayload])))->toBe('ok');
+
+    $csharpCirclePayload = trim(runCommand(['dotnet', 'run', $script, '--', 'abstract-union-write']));
+    expect(bin2hex(base64_decode($csharpCirclePayload, true)))->toBe(bin2hex($circlePayload));
+    expect(trim(runCommand(['dotnet', 'run', $script, '--', 'abstract-union-read', base64_encode($circlePayload)])))->toBe('ok');
 });
 
 it('round trips nested list schemas', function (): void {
